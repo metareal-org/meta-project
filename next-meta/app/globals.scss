@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+html,
+body {
+  font-family: "Lufga", sans-serif;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+@layer base {
+  :root {
+    --background: #141718;
+    --foreground: #f2f2f2;
+    --card: #0d0d1a;
+    --card-foreground: #f2f2f2;
+    --popover: #07070d;
+    --popover-foreground: #f2f2f2;
+    --primary: #22c55e;
+    --primary-foreground: #001408;
+    --secondary: #b0e2ff;
+    --secondary-foreground: #141718;
+    --muted: #1f4d3d;
+    --muted-foreground: #ffffff;
+    --accent: #1f4d3d;
+    --accent-foreground: #efefef;
+    --destructive: #ff0000;
+    --destructive-foreground: #f2f2f2;
+    --border: #3d3d3d;
+    --input: #3d3d3d;
+    --ring: #98d9e1;
+    --radius: 0.5rem;
+  }
+}
+
+@mixin text-stroke($px) {
+  text-shadow: -#{$px}px 0 black, 0 #{$px}px black, #{$px}px 0 black, 0 -#{$px}px black;
+}
+
+@for $i from 1 through 10 {
+  .text-stroke-#{$i} {
+    @include text-stroke($i);
+  }
+}

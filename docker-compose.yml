@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  next-front:
+    build:
+      context: ./next-meta
+      dockerfile: Dockerfile
+    ports:
+      - "13000:13000"
+
+  laravel-back:
+    build:
+      context: ./laravel-meta
+      dockerfile: Dockerfile
+    ports:
+      - "180:80"
+    volumes:
+      - ./laravel-meta:/var/www/html
+      - /var/www/html/vendor
+      - /var/www/html/storage
+      - /var/www/html/bootstrap/cache
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: laravel
+      DB_USERNAME: laraveluser
+      DB_PASSWORD: your_laravel_db_password
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:5.7
+    ports:
+      - "13306:3306"
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laraveluser
+      MYSQL_PASSWORD: your_laravel_db_password
+      MYSQL_ROOT_PASSWORD: your_mysql_root_password
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  dbdata:
