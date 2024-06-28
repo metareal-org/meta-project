@@ -12,7 +12,7 @@ const projectId = "6a1fbd37940215489abd38edd45e9f0a";
 const metadata = {
   name: "Web3Modal",
   description: "Web3Modal Example",
-  url: "http://localhost:3000/",
+  url: "http://localhost:13000/",
   icons: ["https://avatars.githubusercontent.com/u/37784886"],
 };
 const chains = [bscTestnet] as const;
