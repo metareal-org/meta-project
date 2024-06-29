@@ -25,9 +25,6 @@ services:
       DB_DATABASE: laravel
       DB_USERNAME: laraveluser
       DB_PASSWORD: your_laravel_db_password
-    depends_on:
-      db:
-        condition: service_healthy
 
   db:
     image: mysql:5.7
@@ -40,11 +37,6 @@ services:
       MYSQL_ROOT_PASSWORD: your_mysql_root_password
     volumes:
       - dbdata:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   dbdata:
