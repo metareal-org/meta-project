@@ -1,24 +1,30 @@
 import { create } from "zustand";
 
-export type DrawerNames = "noDrawer" | "buildingDrawer" | "mineDrawer";
+export const drawerNames = ["noDrawer", "buildingDrawer", "mineDrawer", "inventoryDrawer"] as const;
+export type DrawerName = typeof drawerNames[number];
 
-type DrawerStates = {
-  [key in DrawerNames]: boolean;
-};
+type DrawerStates = Record<DrawerName, boolean>;
 
 interface DrawerStore extends DrawerStates {
-  setDrawerState: (drawer: DrawerNames, active: boolean) => void;
+  setDrawerState: (drawer: DrawerName, active: boolean) => void;
+  resetDrawers: () => void;
+  activeDrawer: DrawerName | null;
 }
-const drawers = {
-  noDrawer: false,
-  buildingDrawer: false,
-  mineDrawer: false,
-};
-const useDrawerStore = create<DrawerStore>((set) => ({
-  ...drawers,
-  setDrawerState: (drawer, state) => {
-    set({ ...drawers, [drawer]: state });
-  },
+
+const initialDrawerStates: DrawerStates = Object.fromEntries(
+  drawerNames.map(name => [name, false])
+) as DrawerStates;
+
+const useDrawerStore = create<DrawerStore>((set, get) => ({
+  ...initialDrawerStates,
+  activeDrawer: null,
+  setDrawerState: (drawer, active) => 
+    set(state => ({
+      ...Object.fromEntries(drawerNames.map(name => [name, false])),
+      [drawer]: active,
+      activeDrawer: active ? drawer : null
+    })),
+  resetDrawers: () => set({ ...initialDrawerStates, activeDrawer: null }),
 }));
 
 export default useDrawerStore;

@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import useDialogStore from "@/store/gui-store/useDialogStore";
 import useLandStore from "@/store/world-store/useLandStore";
 import useUnitStore from "@/store/world-store/useUnitStore";
-import { MouseEventHandler, ReactNode } from "react";
+import { MouseEventHandler, ReactNode, useState } from "react";
 import { center } from "@turf/turf";
+import axiosInstance from "@/lib/axios-instance";
 
 interface BuildingButtonProps {
   icon: ReactNode;
@@ -11,14 +12,17 @@ interface BuildingButtonProps {
   onClick: MouseEventHandler<HTMLButtonElement>;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
-const BuildingButton = ({ icon, text, onClick, className = "", style = {} }: BuildingButtonProps) => (
+const BuildingButton = ({ icon, text, onClick, className = "", style = {}, disabled = false }: BuildingButtonProps) => (
   <Button
     style={style}
     className={`flex-col items-center justify-center p-4
-    size-18  text-white transition duration-300 ease-out rounded-lg shadow-black/20 shadow hover:scale-105 ${className}`}
+    size-18 text-white transition duration-300 ease-out rounded-lg shadow-black/20 shadow hover:scale-105 ${className}
+    ${disabled ? 'grayscale pointer-events-none' : ''}`}
     onClick={onClick}
+    disabled={disabled}
   >
     <div className="flex items-center justify-center">{icon}</div>
     <div className="font-semibold bg-black-950 text-xs border rounded p-1">{text}</div>
@@ -31,10 +35,12 @@ interface BuildingButtonsProps {
 }
 
 const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
+  const [isMoveButtonDisabled, setIsMoveButtonDisabled] = useState(false);
   const isOwner = owner_id === 1;
   const { setDialogState } = useDialogStore();
   const { moveMarker, marker } = useUnitStore();
   const { selectedLand } = useLandStore();
+
   const buttonConfigs = [
     {
       style: {
@@ -43,15 +49,33 @@ const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/walk-finger-hand-gesture-10551875-8573171.png?f=webp" />,
       text: "Move",
       onClick: () => {
+        setIsMoveButtonDisabled(true);
         const centerPoint = selectedLand?.geometry && center(selectedLand.geometry).geometry.coordinates;
         if (centerPoint) {
-          const newCoordinates: [number, number] = centerPoint as [number, number];
-          moveMarker(marker as mapboxgl.Marker, newCoordinates);
+          console.log("Center point:", centerPoint);
+
+          axiosInstance
+            .post("/user/update", {
+              coordinates: JSON.stringify(centerPoint),
+            })
+            .then((r) => {
+              if (r.status === 200) {
+                const newCoordinates: [number, number] = centerPoint as [number, number];
+                moveMarker(marker as mapboxgl.Marker, newCoordinates);
+              }
+              setIsMoveButtonDisabled(false);
+            })
+            .catch((e) => {
+              console.error(e);
+              setIsMoveButtonDisabled(false);
+            });
         } else {
           console.error("Center point is undefined");
+          setIsMoveButtonDisabled(false);
         }
       },
       condition: true,
+      disabled: isMoveButtonDisabled,
     },
     {
       style: {
@@ -100,7 +124,19 @@ const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
     },
   ];
 
-  return <div className="flex py-4 gap-2">{buttonConfigs.map((config, index) => config.condition && <BuildingButton key={index} {...config} />)}</div>;
+  return (
+    <div className="flex py-4 gap-2">
+      {buttonConfigs.map((config, index) =>
+        config.condition && (
+          <BuildingButton
+            key={index}
+            {...config}
+            disabled={config.disabled}
+          />
+        )
+      )}
+    </div>
+  );
 };
 
 export default BuildingButtons;

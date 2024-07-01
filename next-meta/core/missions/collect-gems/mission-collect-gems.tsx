@@ -15,6 +15,9 @@ import useAvatarFobLogic from "@/hooks/useAvatarFobLogics";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { AZADI_TOWER_COORDINATES } from "@/core/constants";
 import axiosInstance from "@/lib/axios-instance";
+import { Separator } from "@/components/ui/separator";
+import { Grid } from "@/components/ui/tags";
+import { Button } from "@/components/ui/button";
 
 export default function MissionCollectGems() {
   const { setSelectedMission, selectedMission } = useMissionStore();
@@ -25,7 +28,7 @@ export default function MissionCollectGems() {
   const { isAvatarLoaded } = useAvatarStore();
   const { threebox } = useThreeboxStore() as ThreeboxStore;
   const isMissionCollecting = selectedMission?.id == MissionId.CollectGems;
-  const GEM_COUNT = 3;
+  const GEM_COUNT = 8;
   useEffect(() => {
     if (!threebox) return;
     loadGems();
@@ -55,11 +58,36 @@ export default function MissionCollectGems() {
       title: "Welcome to Azadi 'Tower",
       picture: "/assets/images/missions/collect-gems/collect-gems-alert.jpg",
       description: (
-        <div>
-          Welcome to the world of Metareal. If you're ready to start playing, your first mission is to{" "}
-          <span className="text-primary">Collect {GEM_COUNT} Gems</span> scattered around the area and then pick up the machine switch. If you complete the
-          steps, you will be rewarded in return.
-        </div>
+        <Grid>
+          <div>
+            Welcome to the world of Metareal. If you're ready to start playing, your first mission is to{" "}
+            <span className="text-primary">Collect {GEM_COUNT} Gems</span> scattered around the area and then pick up the machine switch. If you complete the
+            steps, you will be rewarded in return.
+          </div>
+          <Separator className="my-4" />
+          <div className="flex flex-wrap gap-2 items-center rounded-lg">
+            <div>you can use</div>
+            <div className="gap-1 flex flex-wrap w-max">
+              <Button variant={"outline"} size={"iconsm"}>
+                W
+              </Button>
+              <Button variant={"outline"} size={"iconsm"}>
+                A
+              </Button>
+              <Button variant={"outline"} size={"iconsm"}>
+                S
+              </Button>
+              <Button variant={"outline"} size={"iconsm"}>
+                D
+              </Button>
+            </div>
+            <div>to walk and</div>
+            <Button variant={"outline"} className="h-7 ">
+              Shift
+            </Button>
+            <div>to run</div>
+          </div>
+        </Grid>
       ),
       buttons: [{ label: "I'm ready" }],
     });
@@ -70,8 +98,8 @@ export default function MissionCollectGems() {
       openAlert({
         title: "Ready to drive?",
         description:
-          "Great! At this stage, you need to get the car to its destination. To know where to go, you can look at the map at the bottom left of the screen.",
-        picture: "/assets/images/missions/collect-gems/ready-to-drive.jpg",
+          "Great! At this stage, you need to get the car to its destination.",
+        picture: "/assets/images/missions/collect-gems/pickup-fob.jfif",
         buttons: [
           {
             label: "Enter the car",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { SERVER, SIGN_MESSAGE } from "@/core/constants";
+import { DEFAULT_UNIT_COORDINATE, SERVER, SIGN_MESSAGE } from "@/core/constants";
 import Cookies from "js-cookie";
 import axios from "axios";
 import axiosInstance from "@/lib/axios-instance";
@@ -8,11 +8,15 @@ import { useUserStore } from "@/store/player-store/useUserStore";
 import useAvatarStore from "@/store/objects-store/useAvatarStore";
 import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "../mission-config";
-
+import useUnitStore from "@/store/world-store/useUnitStore";
+const DEBUG = false;
 export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
   const { address, status } = useAccount();
   const { data: signedSignature, signMessage } = useSignMessage();
+
+
+  
   useEffect(() => {
     const authenticate = async () => {
       if (!address) {
@@ -33,7 +37,7 @@ export default function MissionInitialize() {
               },
             }
           );
-          console.log("Authentication successful", response.data);
+          DEBUG && console.log("Authentication successful", response.data);
           setIsAuthValid(true);
         } catch (error) {
           console.error("Authentication failed", error);
@@ -63,12 +67,15 @@ export default function MissionInitialize() {
   }, [signedSignature, address]);
 
   useEffect(() => {
+    console.log("here");
     if (isAuthValid) {
       axiosInstance.post("user/show").then((response) => {
         const user = response.data.user;
+        console.log(JSON.parse(user.coordinates));
         useUserStore.getState().setUser(user);
         useUserStore.getState().setNickname(user.nickname || "");
         useAvatarStore.getState().setAvatarUrl(user.avatar_url || "");
+        useUnitStore.getState().setUnitCoordinates(JSON.parse(user.coordinates) || DEFAULT_UNIT_COORDINATE);
         useMissionStore.getState().setSelectedMission(user.current_mission || MissionId.SetNickname);
       });
     }

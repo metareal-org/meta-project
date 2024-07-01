@@ -14,6 +14,9 @@ import useCarLogic from "@/hooks/useCarLogic";
 import loadChestman from "@/core/loaders/models-load/chestman-load";
 import axiosInstance from "@/lib/axios-instance";
 import useGemStore from "@/store/objects-store/useGemsStore";
+import useAlertStore from "@/store/gui-store/useAlertStore";
+import { Grid } from "@/components/ui/tags";
+import { Button } from "@/components/ui/button";
 const DEBUG = false;
 const addRoute = async (minimap: mapboxgl.Map | undefined, carModel: { coordinates: number[] } | undefined) => {
   if (!minimap || !carModel) return;
@@ -70,12 +73,50 @@ export default function MissionDriverToChestman() {
   const { isChestmanNearby } = useChestmanStore();
   const { isReachedToChestman, checkNearbyChestman, setIsReachedToChestman } = useChestmanStore();
   const { areGemsLoaded, setAllGemsVisibility, gemModels } = useGemStore.getState();
+  const { openAlert } = useAlertStore();
   useEffect(() => {
+    loadChestman();
+
+    if (selectedMission.id !== MissionId.DriveToChestman) return;
     if (!isCarLoaded) {
       loadCar();
       DEBUG && console.log("Car loaded");
     } else {
-      loadChestman();
+
+      openAlert({
+        title: "Time to drive!",
+        description: (
+          <>
+            <Grid>
+              <div>Look at minimap it will show you where you need to drive.</div>
+              <div className="flex flex-wrap gap-2 items-center py-2 rounded-lg">
+                <div>you can use</div>
+                <div className="gap-1 flex flex-wrap w-max">
+                  <Button variant={"outline"} size={"iconsm"}>
+                    W
+                  </Button>
+                  <Button variant={"outline"} size={"iconsm"}>
+                    A
+                  </Button>
+                  <Button variant={"outline"} size={"iconsm"}>
+                    S
+                  </Button>
+                  <Button variant={"outline"} size={"iconsm"}>
+                    D
+                  </Button>
+                </div>
+                <div>to move and</div>
+                <Button variant={"outline"} className="h-7 ">
+                  Shift
+                </Button>
+                <div>to look boost your speed</div>
+              </div>
+            </Grid>
+          </>
+        ),
+        picture: "/assets/images/missions/drive-to-chestman/man-looking-at-map.jfif",
+        buttons: [{ label: "ok!" }],
+      });
     }
   }, [selectedMission, isCarLoaded]);
 

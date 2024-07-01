@@ -7,7 +7,6 @@ type TokenWidgetProps = {
 };
 
 const TokenWidget = ({ imgSrc, tokenValue, tokenName }: TokenWidgetProps) => {
-  return null;
 
   return (
     <Flex className="items-center relative">
@@ -20,13 +19,12 @@ const TokenWidget = ({ imgSrc, tokenValue, tokenName }: TokenWidgetProps) => {
 };
 
 const PortfolioWidget = () => {
-  return null;
   return (
     <>
-      <div className="fixed  h-20 items-center flex top-5 right-5">
+      <div className="fixed z-20 h-20 items-center flex top-5 right-5">
         <Flex className="gap-2">
-          <TokenWidget imgSrc="/assets/images/tokens/meta.png" tokenValue="123,123,412" tokenName="Meta" />
-          <TokenWidget imgSrc="/assets/images/tokens/cp.webp" tokenValue="123,123,412" tokenName="Meta" />
+          <TokenWidget imgSrc="/assets/images/tokens/meta.png" tokenValue="0" tokenName="Meta" />
+          <TokenWidget imgSrc="/assets/images/tokens/cp.webp" tokenValue="0" tokenName="CP" />
         </Flex>
       </div>
     </>

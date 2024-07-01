@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import mapboxgl from "mapbox-gl";
+import { DEFAULT_UNIT_COORDINATE } from "@/core/constants";
 
-const lat = 35.71999850180396;
-const lng = 51.42054437269397;
-
+const defaultCoordinates = DEFAULT_UNIT_COORDINATE;
 type UnitStoreState = {
   unitCoordinates: [number, number];
   setUnitCoordinates: (coordinates: [number, number]) => void;
@@ -21,7 +20,7 @@ const useUnitStore = create<UnitStoreState>((set) => ({
   marker: null,
   map: null,
   setMarker: (marker, map) => set({ marker, map }),
-  unitCoordinates: [lng, lat],
+  unitCoordinates: defaultCoordinates,
   setUnitCoordinates: (coordinates) => set({ unitCoordinates: coordinates }),
   createMarkerElement: () => {
     const markerElement = document.createElement("div");

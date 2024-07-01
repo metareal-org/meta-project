@@ -1,7 +1,6 @@
 import useMapStore from "@/store/engine-store/useMapStore";
 import mapboxgl from "mapbox-gl";
 import useUnitStore from "@/store/world-store/useUnitStore";
-import { UNIT_COORDINATES } from "@/core/constants";
 
 export default function loadUnit() {
   const { mapbox } = useMapStore.getState();
@@ -11,7 +10,7 @@ export default function loadUnit() {
     const marker = new mapboxgl.Marker({
       element: createMarkerElement(),
     })
-      .setLngLat(UNIT_COORDINATES)
+      .setLngLat(useUnitStore.getState().unitCoordinates)
       .addTo(mapbox);
     setMarker(marker, mapbox);
     mapbox.on("zoom", () => {
