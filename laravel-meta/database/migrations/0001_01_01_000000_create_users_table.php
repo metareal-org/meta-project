@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('address')->unique();
             $table->string('nickname')->nullable();
             $table->string('avatar_url')->nullable();
+            $table->json('coordinates')->nullable();
             $table->integer('current_mission')->default(0);
             $table->rememberToken();
             $table->timestamps();

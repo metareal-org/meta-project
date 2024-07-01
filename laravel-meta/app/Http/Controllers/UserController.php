@@ -132,6 +132,7 @@ class UserController extends Controller
         $validatedData = $request->validate([
             'current_mission' => 'sometimes|integer|min:0',
             'avatar_url' => 'sometimes|string|max:255',
+            'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
         ]);
 
