@@ -2,18 +2,45 @@ import { useState, useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
 import { Component } from "@/components/ui/tags";
-import useAlertStore, { AlertConfig } from "@/store/gui-store/useAlertStore";
-import { MissionId } from "@/core/missions/mission-config";
-import useMissionStore from "@/store/useMissionStore";
+import useAlertStore from "@/store/gui-store/useAlertStore";
 import { X } from "lucide-react";
+import useDrawerStore from "@/store/gui-store/useDrawerStore";
+import useMissionStore from "@/store/useMissionStore";
+import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
+import { MissionId } from "@/core/missions/mission-config";
+import { useInventoryStore } from "@/store/player-store/useInventoryStore";
+
+const constants = {
+  wheel: {
+    baseSpinDegree: 180,
+    additionalSpin: 324.5,
+    // spinMultiplier: 4,
+    spinMultiplier: 0,
+  },
+  animation: {
+    // wheelDuration: 7,
+    wheelDuration: 1,
+    indicatorDuration: 0.1,
+    // indicatorRepeat: 50,
+    indicatorRepeat: 0,
+    indicatorRotation: -10,
+  },
+  // alertDelay: 2000,
+  alertDelay: 1,
+};
 
 export default function SpinWheel() {
   const [spinning, setSpinning] = useState(false);
   const { SpinsBalance, decereaseSpinBalance, showSpinModal, setShowSpinModal } = useSpinwheelStore();
-  const { setSelectedMission } = useMissionStore();
   const { openAlert } = useAlertStore();
+  const { activeDrawer } = useDrawerStore();
+  const { updateItemCount } = useInventoryStore();
+  const { selectedMission } = useMissionStore();
   const wheelRef = useRef(null);
   const indicatorRef = useRef(null);
+  const [giftJoyPlayed, setGiftJoyPlayed] = useState(false);
+  const { setSelectedMission } = useMissionStore();
+  const { addStep } = useJoyrideStore();
 
   useEffect(() => {
     setIndicatorTransformOrigin();
@@ -29,7 +56,7 @@ export default function SpinWheel() {
     if (!spinning && SpinsBalance > 0) {
       setSpinning(true);
       decereaseSpinBalance();
-      const newSpinDegree = Math.floor(180) + 324.5 * 4;
+      const newSpinDegree = constants.wheel.baseSpinDegree + constants.wheel.additionalSpin * constants.wheel.spinMultiplier;
       animateWheel(newSpinDegree);
       animateIndicator();
     }
@@ -37,9 +64,9 @@ export default function SpinWheel() {
 
   const animateWheel = (newSpinDegree: number) => {
     gsap.to(wheelRef.current, {
-      duration: 7,
+      duration: constants.animation.wheelDuration,
       rotation: newSpinDegree,
-      ease: "power1.out",
+      // ease: "power1.out",
       onComplete: () => {
         setSpinning(false);
       },
@@ -48,11 +75,11 @@ export default function SpinWheel() {
 
   const animateIndicator = () => {
     gsap.to(indicatorRef.current, {
-      duration: 0.1,
-      rotation: -10,
-      yoyo: true,
-      repeat: 50,
-      ease: "power2.inOut",
+      duration: constants.animation.indicatorDuration,
+      rotation: constants.animation.indicatorRotation,
+      // yoyo: true,
+      repeat: constants.animation.indicatorRepeat,
+      // ease: "power2.inOut",
       onComplete: () => {
         gsap.set(indicatorRef.current, {
           rotation: 0,
@@ -67,20 +94,23 @@ export default function SpinWheel() {
       openAlert({
         title: "Congratulations!",
         description: "You won a gift box!",
-        picture: "/assets/images/gift-box.png",
+        picture: "/assets/images/minigames/spinwheel/giftbox.jpg",
         buttons: [
           {
             label: "Claim",
-            onClick: () => {
-              console.log("Gift claimed!");
-              setShowSpinModal(false);
-              setSelectedMission(MissionId.Advanture);
-            },
+            onClick: handleGiftClaimed,
           },
         ],
       });
+    }, constants.alertDelay);
+  };
 
-    }, 2000);
+  const handleGiftClaimed = () => {
+    console.log("Gift claimed!");
+    setShowSpinModal(false);
+    setSelectedMission(MissionId.OpenGiftBox);
+    updateItemCount("Gift", 1);
+    updateItemCount("Ticket", 0);
   };
 
   const handleClose = () => {
@@ -91,14 +121,11 @@ export default function SpinWheel() {
 
   return (
     <>
-      <Component
-        className="fixed w-screen h-dvh bg-black/80 flex items-center justify-center z-10"
-        onClick={handleClose} // Add click handler to the background
-      >
+      <Component className="fixed w-screen h-dvh bg-black/80 flex items-center justify-center z-10" onClick={handleClose}>
         <div
           style={{ background: "linear-gradient(90deg, #00B8FF 0%, #0459EC 100%)" }}
           className="rounded-3xl w-full max-w-3xl h-max py-16 fixed z-10 inset-0 m-auto "
-          onClick={(e) => e.stopPropagation()} // Prevent clicks on the modal from closing it
+          onClick={(e) => e.stopPropagation()}
         >
           <button onClick={handleClose} className="absolute bg-black-1000/30 p-1 rounded-full top-4 right-4 text-white hover:text-gray-300 transition-colors">
             <X size={20} />

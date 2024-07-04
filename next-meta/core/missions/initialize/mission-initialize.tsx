@@ -14,9 +14,8 @@ export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
   const { address, status } = useAccount();
   const { data: signedSignature, signMessage } = useSignMessage();
-
-
-  
+  const AUTH_ROUTE = `${SERVER}/user/authenticate`;
+  // const AUTH_ROUTE = `https://services.metareal.games/user/authenticate`;
   useEffect(() => {
     const authenticate = async () => {
       if (!address) {
@@ -29,7 +28,7 @@ export default function MissionInitialize() {
       } else {
         try {
           const response = await axios.post(
-            `${SERVER}/user/authenticate`,
+            AUTH_ROUTE,
             { address },
             {
               headers: {
@@ -52,7 +51,7 @@ export default function MissionInitialize() {
     if (!signedSignature || !address) return;
     const createToken = async () => {
       try {
-        const response = await axios.post(`${SERVER}/user/authenticate`, {
+        const response = await axios.post(AUTH_ROUTE, {
           address,
           message: SIGN_MESSAGE,
           signature: signedSignature,
@@ -65,7 +64,6 @@ export default function MissionInitialize() {
     };
     createToken();
   }, [signedSignature, address]);
-
   useEffect(() => {
     console.log("here");
     if (isAuthValid) {
@@ -74,6 +72,8 @@ export default function MissionInitialize() {
         console.log(JSON.parse(user.coordinates));
         useUserStore.getState().setUser(user);
         useUserStore.getState().setNickname(user.nickname || "");
+        useUserStore.getState().setCpAmount(user.cp_amount || 0);
+        useUserStore.getState().setMetaAmount(user.meta_amount || 0);
         useAvatarStore.getState().setAvatarUrl(user.avatar_url || "");
         useUnitStore.getState().setUnitCoordinates(JSON.parse(user.coordinates) || DEFAULT_UNIT_COORDINATE);
         useMissionStore.getState().setSelectedMission(user.current_mission || MissionId.SetNickname);

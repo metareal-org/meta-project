@@ -6,6 +6,7 @@ import MissionCreateAvatar from "@/core/missions/create-avatar/mission-create-av
 import MissionAdvanture from "@/core/missions/advanture/mission-advanture";
 import MissionInitialize from "@/core/missions/initialize/mission-initialize";
 import MissionSetNickname from "@/core/missions/set-nickname/mission-set-nickname";
+import MissionOpenGiftbox from "@/core/missions/open-giftbox/mission-open-giftbox";
 export default function Missions() {
   MissionInitialize();
   MissionAuthentication();
@@ -15,4 +16,5 @@ export default function Missions() {
   MissionGetYourAirdrops();
   MissionAdvanture();
   MissionSetNickname();
+  MissionOpenGiftbox();
 }

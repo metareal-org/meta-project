@@ -1,4 +1,3 @@
-// core/missions/get-your-airdrops/mission-get-your-airdrops.tsx
 import React, { useEffect, useState } from "react";
 import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "../mission-config";
@@ -9,6 +8,8 @@ import useMapStore from "@/store/engine-store/useMapStore";
 import { CHESTMAN_LOCATION } from "@/core/constants";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
+import { useInventoryStore } from "@/store/player-store/useInventoryStore";
+import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
 
 export default function MissionGetYourAirdrops() {
   const { selectedMission } = useMissionStore();
@@ -16,9 +17,10 @@ export default function MissionGetYourAirdrops() {
   const { mapbox, setIsFlying } = useMapStore();
   const { addStep } = useJoyrideStore();
   const { activeDrawer } = useDrawerStore();
+  const { updateItemCount } = useInventoryStore();
   const [ticketJoyPlayed, setTicketJoyPlayed] = useState(false);
+
   useEffect(() => {
-    console.log("MissionGetYourAirdrops rendered, selectedMission:", selectedMission);
     if (selectedMission?.id !== MissionId.GetYourAirdrops) return;
     axiosInstance.post("user/update", {
       current_mission: MissionId.GetYourAirdrops,
@@ -37,6 +39,7 @@ export default function MissionGetYourAirdrops() {
       showTradeAlert();
     });
   }, [selectedMission, mapbox]);
+
   const showTradeAlert = () => {
     console.log("Showing trade alert");
     openAlert({
@@ -66,6 +69,7 @@ export default function MissionGetYourAirdrops() {
           label: "Trade",
           onClick: () => {
             console.log("Trade button clicked");
+            updateItemCount("Ticket", 1);
             addStep({
               target: ".inventory",
               content: "Click on the Inventory button to open your inventory",
@@ -76,10 +80,11 @@ export default function MissionGetYourAirdrops() {
       ],
     });
   };
+
   useEffect(() => {
     if (activeDrawer === "inventoryDrawer" && !ticketJoyPlayed && selectedMission?.id === MissionId.GetYourAirdrops) {
       addStep({
-        target: ".tutorial-target",
+        target: ".inventory-ticket-target",
         content: "Click on the ticket to open the Spinwheel",
         disableBeacon: true,
         styles: {
@@ -90,6 +95,9 @@ export default function MissionGetYourAirdrops() {
       });
       setTicketJoyPlayed(true);
     }
-  }, [activeDrawer]);
+  }, [activeDrawer, ticketJoyPlayed, selectedMission]);
+
+
+
   return null;
 }

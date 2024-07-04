@@ -1,13 +1,13 @@
 import { Flex } from "@/components/ui/tags";
+import { useUserStore } from "@/store/player-store/useUserStore";
 
 type TokenWidgetProps = {
   imgSrc: string;
-  tokenValue: string;
+  tokenValue: number;
   tokenName: string;
 };
 
 const TokenWidget = ({ imgSrc, tokenValue, tokenName }: TokenWidgetProps) => {
-
   return (
     <Flex className="items-center relative">
       <img src={imgSrc} className="z-10 -mt-2 size-16" />
@@ -19,12 +19,13 @@ const TokenWidget = ({ imgSrc, tokenValue, tokenName }: TokenWidgetProps) => {
 };
 
 const PortfolioWidget = () => {
+  const { metaAmount, cpAmount } = useUserStore();
   return (
     <>
       <div className="fixed z-20 h-20 items-center flex top-5 right-5">
         <Flex className="gap-2">
-          <TokenWidget imgSrc="/assets/images/tokens/meta.png" tokenValue="0" tokenName="Meta" />
-          <TokenWidget imgSrc="/assets/images/tokens/cp.webp" tokenValue="0" tokenName="CP" />
+          <TokenWidget imgSrc="/assets/images/tokens/meta.png" tokenValue={metaAmount || 0} tokenName="Meta" />
+          <TokenWidget imgSrc="/assets/images/tokens/cp.webp" tokenValue={cpAmount || 0} tokenName="CP" />
         </Flex>
       </div>
     </>

@@ -8,7 +8,8 @@ export enum MissionId {
   CollectGems = 4,
   DriveToChestman = 5,
   GetYourAirdrops = 6,
-  Advanture = 7,
+  OpenGiftBox = 7,
+  Advanture = 8,
 }
 
 export interface MissionConfig {
@@ -41,6 +42,8 @@ export const missionConfigs: MissionConfig[] = [
     label: "Initialize",
     components: {
       ...defaultComponents,
+      widgets: false,
+      drawers: false,
     },
   },
   {
@@ -72,7 +75,10 @@ export const missionConfigs: MissionConfig[] = [
   {
     id: MissionId.CollectGems,
     label: "Collect Gems",
-    components: defaultComponents,
+    components: {
+      ...defaultComponents,
+      drawers: false,
+    },
   },
   {
     id: MissionId.DriveToChestman,
@@ -85,6 +91,11 @@ export const missionConfigs: MissionConfig[] = [
   {
     id: MissionId.GetYourAirdrops,
     label: "Get Your Airdrops",
+    components: defaultComponents,
+  },
+  {
+    id: MissionId.OpenGiftBox,
+    label: "Open Your giftbox",
     components: defaultComponents,
   },
   {

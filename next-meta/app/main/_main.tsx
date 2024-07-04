@@ -7,14 +7,16 @@ import GetLocation from "@/helpers/get-location";
 import { Fragment, useEffect, useState } from "react";
 import MissionsManager from "@/components/game-engine/missions";
 import SpinWheel from "@/components/minigames/spinwheel";
-
+import axios from "axios";
 
 export default function Main() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
+
   if (!isClient) return null;
+
   return (
     <Fragment>
       <MissionsManager />
