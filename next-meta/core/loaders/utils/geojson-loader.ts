@@ -5,15 +5,15 @@ interface CustomProperties {
   fid: number;
   "fill-color": string;
   owner_id?: number;
-  forsale?: boolean;
+  is_for_sale?: boolean;
 }
 
 export const GeoJsonLoader = <T>(
   url: string,
   sourceId: string,
   layerId: string,
-  entityMap: { [key: number]: T & { owner_id: number; forsale: boolean } },
-  getColor: (ownerId: number, forSale: boolean) => string
+  entityMap: { [key: number]: T & { owner_id: number; is_for_sale: boolean } },
+  getColor: (owner_id: number, is_for_sale: boolean) => string
 ) => {
   const { mapbox } = useMapStore.getState();
 
@@ -26,12 +26,12 @@ export const GeoJsonLoader = <T>(
 
           data.features.forEach((feature: GeoJSON.Feature<GeoJSON.Geometry, CustomProperties>) => {
             const fid = feature.properties.fid;
-            const entity = entityMap[fid] || { owner_id: 100, forsale: false };
+            const entity = entityMap[fid] || { owner_id: 100, is_for_sale: false };
 
             feature.properties = {
               ...feature.properties,
               ...entity,
-              "fill-color": getColor(entity.owner_id, entity.forsale),
+              "fill-color": getColor(entity.owner_id, entity.is_for_sale),
             };
           });
 

@@ -12,10 +12,10 @@ import useUnitStore from "@/store/world-store/useUnitStore";
 const DEBUG = false;
 export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
-  const { address, status } = useAccount();
+  const { address, status } = useAccount(); 
   const { data: signedSignature, signMessage } = useSignMessage();
   const AUTH_ROUTE = `${SERVER}/user/authenticate`;
-  // const AUTH_ROUTE = `https://services.metareal.games/user/authenticate`;
+  // const AUTH_ROUTE = `https://services.metareal.games/user/authenticate/`;
   useEffect(() => {
     const authenticate = async () => {
       if (!address) {

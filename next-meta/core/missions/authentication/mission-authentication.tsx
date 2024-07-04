@@ -19,7 +19,8 @@ const validationSchema = Yup.object().shape({
 
 export default function MissionAuthentication() {
   if (useMissionStore().selectedMission.id !== MissionId.Authentication) return;
-  console.log("Rendering authentication mission");
+  console.log("skiping authentication mission");
+  useMissionStore().setSelectedMission(MissionId.SetNickname);
 }
 //   const { selectedMission, setSelectedMission } = useMissionStore();
 //   const { mapbox, stopSpinGlobe, setIsFlying } = useMapStore();

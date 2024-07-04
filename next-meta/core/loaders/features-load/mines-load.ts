@@ -8,7 +8,7 @@ export const loadMines = () => {
     mineMap[mine.fid] = mine;
   });
 
-  const getColorForMine = (ownerId: number, forSale: boolean) => {
+  const getColorForMine = (owner_id: number, is_for_sale: boolean) => {
     return "#1f3232";
   };
 

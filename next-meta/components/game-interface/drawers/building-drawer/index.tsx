@@ -12,14 +12,14 @@ import { X } from "lucide-react";
 interface BuildingProperties {
   fid: number;
   owner_id: number;
-  forsale: boolean;
+  is_for_sale: boolean;
 }
 
 export default function BuildingDrawer() {
   const { buildingDrawer } = useDrawerStore();
   const { selectedLand } = useLandStore();
   if (!buildingDrawer || !selectedLand) return null;
-  const { fid, owner_id, forsale } = selectedLand.properties as BuildingProperties;
+  const { fid, owner_id, is_for_sale } = selectedLand.properties as BuildingProperties;
   return (
     <div className="fixed z-50 inset-x-0  scale-100 origin-bottom bottom-0 mx-auto w-full max-w-sm bg-black shadow-lg rounded-t-2xl">
       <div className="relative">
@@ -62,7 +62,7 @@ export default function BuildingDrawer() {
         </div>
         <div className="w-full border-t  shadow mx-auto  ">
           <div className="flex items-center py-2 justify-center">
-            <BuildingButtons owner_id={owner_id} forsale={forsale} />
+            <BuildingButtons owner_id={owner_id} is_for_sale={is_for_sale} />
           </div>
         </div>
       </div>

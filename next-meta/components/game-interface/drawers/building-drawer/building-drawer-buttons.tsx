@@ -31,10 +31,10 @@ const BuildingButton = ({ icon, text, onClick, className = "", style = {}, disab
 
 interface BuildingButtonsProps {
   owner_id: number;
-  forsale: boolean;
+  is_for_sale: boolean;
 }
 
-const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
+const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
   const [isMoveButtonDisabled, setIsMoveButtonDisabled] = useState(false);
   const isOwner = owner_id === 1;
   const { setDialogState } = useDialogStore();
@@ -84,7 +84,7 @@ const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/gear-9562135-7800536.png?f=webp" />,
       text: "Re-Price",
       onClick: () => setDialogState("buildingUpdateSellDialog", true),
-      condition: isOwner && forsale,
+      condition: isOwner && is_for_sale,
     },
     {
       style: {
@@ -102,7 +102,7 @@ const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/financial-startup-8663166-6945082.png?f=webp" />,
       text: "Sell",
       onClick: () => setDialogState("buildingSellDialog", true),
-      condition: isOwner && !forsale,
+      condition: isOwner && !is_for_sale,
     },
     {
       style: {
@@ -111,7 +111,7 @@ const BuildingButtons = ({ owner_id, forsale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/solar-house-7303323-6000040.png?f=webp" />,
       text: "Buy",
       onClick: () => setDialogState("buildingBuyDialog", true),
-      condition: !isOwner && forsale,
+      condition: !isOwner && is_for_sale,
     },
     {
       style: {

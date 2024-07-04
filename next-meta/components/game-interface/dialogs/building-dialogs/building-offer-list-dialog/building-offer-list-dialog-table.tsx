@@ -1,5 +1,3 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import useDialogStore from "@/store/gui-store/useDialogStore";
 import { ColumnDef, SortingState, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 

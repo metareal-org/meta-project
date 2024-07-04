@@ -4,9 +4,9 @@ import { MapboxGeoJSONFeature } from "mapbox-gl";
 export interface Mine {
   fid: number;
   owner_id: number;
-  forsale: boolean;
+  is_for_sale: boolean;
   auction?: boolean;
-  basePrice?: number;
+  fixed_price?: number;
 }
 interface MineStoreState {
   selectedMine: MapboxGeoJSONFeature | null;

@@ -1,7 +1,7 @@
-import { loadBuildings } from "@/core/loaders/features-load/buildings-load";
+import { loadLands } from "@/core/loaders/features-load/lands-load";
 import { loadMines } from "@/core/loaders/features-load/mines-load";
 
 export function loadFeatures() {
-  loadBuildings();
+  loadLands();
   loadMines();
 }
