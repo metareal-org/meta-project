@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import axiosInstance from "@/lib/axios-instance";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle } from "lucide-react";
-import { submitOffer, updateOffer } from "@/lib/api/offer";
+import { submitOffer, updateOffer, deleteOffer } from "@/lib/api/offer";
 
 export default function BuildingOfferDialog() {
   const { buildingOfferDialog, setDialogState } = useDialogStore();
@@ -83,7 +83,7 @@ export default function BuildingOfferDialog() {
     if (!userOffer) return;
     setIsSubmitting(true);
     try {
-      await axiosInstance.post(`/offers/delete/${userOffer.id}`);
+      await deleteOffer(userOffer.id);
       toast({
         title: "Bid withdrawn",
         description: "Your bid has been withdrawn successfully",

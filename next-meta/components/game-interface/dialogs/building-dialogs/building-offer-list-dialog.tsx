@@ -36,7 +36,7 @@ export default function BuildingOfferListDialog() {
       title={`Building Offers for Plot #${selectedLand?.properties?.id}`}
       description="View the list of building offers for this land plot below."
     >
-      <div className="grid gap-4 py-4">
+      <div className="grid gap-4 py-2">
         <div className="rounded-lg overflow-hidden">
           <img
             className="w-full h-auto"
@@ -44,9 +44,9 @@ export default function BuildingOfferListDialog() {
             alt="Empty Land"
           />
         </div>
-        {highestOffer !== null && <div className="text-primary mb-1">Highest Offer: ${highestOffer}</div>}
+        {highestOffer !== null && <div className="text-primary">Highest Offer: ${highestOffer}</div>}
 
-        <div className="mt-2">
+        <div>
           <BuildingOfferListTable isLoading={isLoading} data={offers} />
         </div>
       </div>

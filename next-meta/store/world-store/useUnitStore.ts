@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import mapboxgl from "mapbox-gl";
 import { DEFAULT_UNIT_COORDINATE } from "@/core/constants";
+import useAvatarStore from "../objects-store/useAvatarStore";
 
 const defaultCoordinates = DEFAULT_UNIT_COORDINATE;
+
 type UnitStoreState = {
   unitCoordinates: [number, number];
   setUnitCoordinates: (coordinates: [number, number]) => void;
@@ -25,12 +27,13 @@ const useUnitStore = create<UnitStoreState>((set) => ({
   createMarkerElement: () => {
     const markerElement = document.createElement("div");
     markerElement.className = "custom-marker";
-    markerElement.style.backgroundImage = "url(/assets/images/gameplay/unit.png)";
+    const avatarStore = useAvatarStore.getState();
+    markerElement.style.backgroundImage = `url(https://cdn3d.iconscout.com/3d/premium/thumb/location-9170934-7475540.png?f=webp)`;
     markerElement.style.backgroundSize = "cover";
     return markerElement;
   },
   updateMarkerSize: (marker: mapboxgl.Marker, zoom: number) => {
-    const initialSize = 0.3;
+    const initialSize = 0.2;
     const size = initialSize * Math.pow(2, zoom - 10);
     marker.getElement().style.width = `${size}px`;
     marker.getElement().style.height = `${size}px`;

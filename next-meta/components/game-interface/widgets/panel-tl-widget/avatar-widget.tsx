@@ -49,7 +49,7 @@ const Avatar = () => {
   return (
     <div id="avatar" className="fixed  items-center flex top-3 left-5 z-40">
       <Grid>
-        <Flex className="items-center mt-2 relative">
+        <Flex className="items-center mt-0.5 relative">
           <img src="/assets/images/avatar/mine.png" className="z-[4]" />
           <div className="size-[90px] overflow-hidden left-[6px] top-[-12px] absolute">
             <img src={formattedAvatarUrl} className={avatarImageStyle} />

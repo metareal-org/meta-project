@@ -8,7 +8,7 @@ import { Fragment, useEffect, useState } from "react";
 import MissionsManager from "@/components/game-engine/missions";
 import SpinWheel from "@/components/minigames/spinwheel";
 import { Toaster } from "@/components/ui/toaster";
-
+import { Web3ModalProvider } from "@/components/game-engine/web3";
 export default function Main() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -19,13 +19,15 @@ export default function Main() {
 
   return (
     <Fragment>
-      <MissionsManager />
-      <GameInterface />
-      <SpinWheel />
-      <GameEngine />
-      <GetLocation />
-      <GemProgressBar />
-      <Toaster />
+      <Web3ModalProvider>
+        <GameInterface />
+        <MissionsManager />
+        <SpinWheel />
+        <GameEngine />
+        <GetLocation />
+        <GemProgressBar />
+        <Toaster />
+      </Web3ModalProvider>
     </Fragment>
   );
 }

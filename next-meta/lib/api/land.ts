@@ -1,7 +1,7 @@
 import axiosInstance from "../axios-instance";
 import { SERVER } from "@/core/constants";
 
-export const fetchLands = async (bounds: mapboxgl.LngLatBounds, zoom: number) => {
+export const fetchLandsFromServer = async (bounds: mapboxgl.LngLatBounds, zoom: number) => {
   const response = await axiosInstance.get(`${SERVER}/lands`, {
     params: {
       bounds: {
@@ -16,9 +16,17 @@ export const fetchLands = async (bounds: mapboxgl.LngLatBounds, zoom: number) =>
   return response.data;
 };
 
-export const fetchLandDetails = async (id: number) => {
-  const response = await axiosInstance.get(`${SERVER}/lands/${id}`);
-  return response.data;
+export const fetchLandDetails = async (id: number, signal?: AbortSignal) => {
+  try {
+    const response = await axiosInstance.get(`${SERVER}/lands/${id}`, { signal });
+    return response.data;
+  } catch (error) {
+    if (axiosInstance.isCancel(error)) {
+      console.log('Request canceled:', (error as Error).message);
+      throw error;
+    }
+    throw error;
+  }
 };
 
 export const setLandPrice = async (id: number, price: number) => {

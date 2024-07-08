@@ -26,4 +26,5 @@ export default function MissionOpenGiftbox() {
       setGiftJoyPlayed(true);
     }
   }, [selectedMission]);
+  return null;
 }

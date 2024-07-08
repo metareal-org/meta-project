@@ -15,3 +15,13 @@ export const fetchOffers = async (landId: number) => {
   const response = await axiosInstance.get(`${SERVER}/offers/${landId}`);
   return response.data;
 };
+
+export const deleteOffer = async (offerId: number) => {
+  const response = await axiosInstance.post(`/offers/delete/${offerId}`);
+  return response.data;
+};
+
+export const fetchUserOffers = async () => {
+  const response = await axiosInstance.post(`${SERVER}/offers/user`);
+  return response.data;
+};

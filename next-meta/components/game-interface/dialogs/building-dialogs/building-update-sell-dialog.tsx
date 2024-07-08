@@ -75,11 +75,11 @@ export default function BuildingUpdateSellDialog() {
     setIsSubmitting(true);
     try {
       if (!mapbox) throw new Error("Mapbox is not initialized");
-      await axiosInstance.post(`/lands/${currentLandDetails.id}/cancel-sell`);
       const bounds = mapbox.getBounds();
       const zoom = mapbox.getZoom();
-      await fetchLands(bounds, zoom);
+      await cancelLandSell(currentLandDetails.id);
       await fetchLandDetails(currentLandDetails.id);
+      await fetchLands(bounds, zoom);
       toast({
         title: "Sale stopped",
         description: "The land has been removed from sale",

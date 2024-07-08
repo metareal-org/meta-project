@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export const drawerNames = ["noDrawer", "buildingDrawer", "mineDrawer", "inventoryDrawer", "mylandsDrawer"] as const;
+export const drawerNames = ["noDrawer", "buildingDrawer", "mineDrawer", "inventoryDrawer", "mylandsDrawer", "myOffersDrawer"] as const;
 export type DrawerName = (typeof drawerNames)[number];
 
 type DrawerStates = Record<DrawerName, boolean>;

@@ -1,9 +1,7 @@
-// store/world-store/useLandStore.ts
-
 import { create } from "zustand";
 import { MapboxGeoJSONFeature } from "mapbox-gl";
 import axiosInstance from "@/lib/axios-instance";
-import { SERVER } from "@/core/constants";
+import { fetchLandsFromServer, fetchLandDetails } from "@/lib/api/land";
 
 export interface Land {
   id: number;
@@ -22,6 +20,7 @@ export interface LandWithDetails extends Land {
   properties: Land;
   owner_nickname?: string;
   size: number;
+  "fill-color": string;
 }
 
 interface LandStoreState {
@@ -32,12 +31,15 @@ interface LandStoreState {
   setSelectedLandFromServer: (id: number) => Promise<void>;
   currentLandDetails: LandWithDetails | null;
   fetchLandDetails: (id: number) => Promise<void>;
+  currentFetchController: AbortController | null;
 }
 
 const useLandStore = create<LandStoreState>((set, get) => ({
   lands: [],
   selectedLand: null,
   currentLandDetails: null,
+  currentFetchController: null,
+
   setSelectedLand: (land) => {
     set({ selectedLand: land });
     if (land && land.properties && land.properties.id) {
@@ -46,21 +48,10 @@ const useLandStore = create<LandStoreState>((set, get) => ({
       set({ currentLandDetails: null });
     }
   },
+
   fetchLands: async (bounds, zoom) => {
     try {
-      const response = await axiosInstance.get(SERVER + "/lands", {
-        params: {
-          bounds: {
-            north: bounds.getNorth(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            west: bounds.getWest(),
-          },
-          zoom,
-        },
-      });
-      const lands = response.data;
-      console.log("lands fetched:", lands);
+      const lands = await fetchLandsFromServer(bounds, zoom);
       set({ lands });
       return lands;
     } catch (error) {
@@ -68,10 +59,10 @@ const useLandStore = create<LandStoreState>((set, get) => ({
       return [];
     }
   },
+
   setSelectedLandFromServer: async (id: number) => {
     try {
-      const response = await axiosInstance.get(`/lands/${id}`);
-      const landDetails = response.data;
+      const landDetails = await fetchLandDetails(id);
       set((state) => {
         if (!state.selectedLand) return state;
         const updatedSelectedLand: MapboxGeoJSONFeature = {
@@ -84,17 +75,37 @@ const useLandStore = create<LandStoreState>((set, get) => ({
         return { selectedLand: updatedSelectedLand, currentLandDetails: landDetails };
       });
     } catch (error) {
-      console.error("Error fetching land details:", error);
+      if (axiosInstance.isCancel(error)) {
+        console.log('Request canceled:', (error as Error).message);
+      } else {
+        console.error("Error fetching land details:", error);
+      }
     }
   },
+
   fetchLandDetails: async (id: number) => {
+    const currentController = get().currentFetchController;
+    if (currentController) {
+      currentController.abort();
+    }
+
+    const controller = new AbortController();
+    set({ currentFetchController: controller });
+
     try {
-      const response = await axiosInstance.get(`${SERVER}/lands/${id}`);
-      const landDetails = response.data;
+      const landDetails = await fetchLandDetails(id, controller.signal);
       set({ currentLandDetails: landDetails });
     } catch (error) {
-      console.error("Error fetching land details:", error);
-      set({ currentLandDetails: null });
+      if (axiosInstance.isCancel(error)) {
+        console.log('Request canceled:', (error as Error).message);
+      } else {
+        console.error("Error fetching land details:", error);
+        set({ currentLandDetails: null });
+      }
+    } finally {
+      if (get().currentFetchController === controller) {
+        set({ currentFetchController: null });
+      }
     }
   },
 }));

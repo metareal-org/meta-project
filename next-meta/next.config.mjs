@@ -4,5 +4,6 @@ const nextConfig = {
     images: {
         domains: ['models.readyplayer.me'],
     },
+
 }
 export default nextConfig;

@@ -8,23 +8,17 @@ export const setupClickInteractions = () => {
   const { setDrawerState } = useDrawerStore.getState();
   const { mapbox } = useMapStore.getState();
   if (!mapbox) return;
-  mapbox.on("click", "citylands", (e) => {
-    if (e.features && e.features.length > 0) {
-      const feature = e.features[0];
-      handleLandClick(feature, setDrawerState);
-    }
-  });
-  // mapbox.on("click", "mines", (e) => {
-  //   if (e.features && e.features.length > 0) {
-  //     const feature = e.features[0];
-  //     handleLandClick(feature, setDrawerState);
-  //   }
-  // });
+
+  // Use a single click event listener for all layers
   mapbox.on("click", (e) => {
     const features = mapbox.queryRenderedFeatures(e.point, {
-      layers: ["citylands"],
+      layers: ["citylands"], // Add other layer IDs here if needed
     });
-    if (features.length === 0) {
+
+    if (features.length > 0) {
+      const feature = features[0];
+      handleLandClick(feature, setDrawerState);
+    } else {
       deselectLand();
     }
   });
@@ -45,12 +39,14 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
     setSelectedLand(feature);
     updateFillColor(feature);
     setDrawerState(drawerLand[feature.layer.id], true);
+
     const centerPoint = center({ type: "FeatureCollection", features: [feature] });
     const polygonArea = area({ type: "FeatureCollection", features: [feature] });
     const baseZoomLevel = 16;
     const areaThreshold = 1000000;
     const zoomLevel = polygonArea < areaThreshold ? baseZoomLevel + 2 : baseZoomLevel - Math.log2(polygonArea / areaThreshold);
     const [lng, lat] = centerPoint.geometry.coordinates;
+
     if (mapbox) {
       mapbox.flyTo({
         center: [lng, lat],
@@ -60,6 +56,7 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
     }
   }
 };
+
 const deselectLand = () => {
   const { setSelectedLand, selectedLand } = useLandStore.getState();
   if (selectedLand) {

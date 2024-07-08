@@ -3,14 +3,12 @@ import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "../mission-config";
 import useAlertStore from "@/store/gui-store/useAlertStore";
 import { ArrowBigRight } from "lucide-react";
-import axiosInstance from "@/lib/axios-instance";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { CHESTMAN_LOCATION } from "@/core/constants";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
 import { useInventoryStore } from "@/store/player-store/useInventoryStore";
-import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
-
+import { updateUserMission } from "@/lib/api/user";
 export default function MissionGetYourAirdrops() {
   const { selectedMission } = useMissionStore();
   const { openAlert } = useAlertStore();
@@ -21,18 +19,16 @@ export default function MissionGetYourAirdrops() {
   const [ticketJoyPlayed, setTicketJoyPlayed] = useState(false);
 
   useEffect(() => {
-    if (selectedMission?.id !== MissionId.GetYourAirdrops) return;
-    axiosInstance.post("user/update/", {
-      current_mission: MissionId.GetYourAirdrops,
-    });
-    if (!mapbox) return;
-    setIsFlying(true);
-    mapbox.flyTo({
-      center: CHESTMAN_LOCATION,
-      zoom: 30,
-      bearing: 50,
-      pitch: 60,
-      duration: 1,
+    if (selectedMission?.id !== MissionId.GetYourAirdrops || !mapbox) return;
+    updateUserMission(MissionId.GetYourAirdrops).then(() => {
+      setIsFlying(true);
+      mapbox.flyTo({
+        center: CHESTMAN_LOCATION,
+        zoom: 30,
+        bearing: 50,
+        pitch: 60,
+        duration: 1,
+      });
     });
     mapbox.once("moveend", () => {
       setIsFlying(false);
@@ -96,8 +92,6 @@ export default function MissionGetYourAirdrops() {
       setTicketJoyPlayed(true);
     }
   }, [activeDrawer, ticketJoyPlayed, selectedMission]);
-
-
 
   return null;
 }

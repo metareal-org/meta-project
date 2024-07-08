@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MissionId } from "@/core/missions/mission-config";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useMissionStore from "@/store/useMissionStore";
-import { BackpackIcon, HomeIcon } from "lucide-react";
+import {  HomeIcon } from "lucide-react";
 
 export default function MylandsWidget() {
     const { mylandsDrawer, setDrawerState } = useDrawerStore();

@@ -116,7 +116,7 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
   const handleAcceptOffer = (offer_id: string) => {};
 
   return (
-    <div className="w-full pt-4">
+    <div className="w-full">
       <div className="rounded-md border">
         <Table>
           <TableHeader>

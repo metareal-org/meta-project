@@ -1,4 +1,3 @@
-// components/game-interface/widgets/panel-br-widget/inventory-widget.tsx
 import { Button } from "@/components/ui/button";
 import { MissionId } from "@/core/missions/mission-config";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";

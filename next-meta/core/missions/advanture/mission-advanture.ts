@@ -1,12 +1,10 @@
-// core/missions/advanture/mission-advanture.ts
-
 import useMapStore from "@/store/engine-store/useMapStore";
 import useMissionStore from "@/store/useMissionStore";
-import { useEffect } from "react";
+import { cache, useEffect } from "react";
 import { MissionId } from "../mission-config";
 import loadUnit from "@/core/loaders/markers-load/unit-load";
-import axiosInstance from "@/lib/axios-instance";
 import useUnitStore from "@/store/world-store/useUnitStore";
+import { updateUserMission } from "@/lib/api/user";
 
 export default function MissionAdvanture() {
   const { mapbox } = useMapStore();
@@ -14,24 +12,26 @@ export default function MissionAdvanture() {
 
   useEffect(() => {
     if (selectedMission?.id !== MissionId.Advanture || !mapbox) return;
-
-    axiosInstance.post("user/update/", {
-      current_mission: MissionId.Advanture,
-    });
-
-    loadUnit();
-    // mapbox.flyTo({
-    //   center: useUnitStore.getState().unitCoordinates,
-    //   zoom: 18,
-    //   pitch: 0,
-    //   bearing: 0,
-    // });
-    mapbox.jumpTo({
-      center: useUnitStore.getState().unitCoordinates,
-      zoom: 18,
-      pitch: 0,
-      bearing: 0,
-    });
+    updateUserMission(MissionId.Advanture)
+      .then(() => {
+        loadUnit();
+        mapbox.jumpTo({
+          center: useUnitStore.getState().unitCoordinates,
+          zoom: 18,
+          pitch: 0,
+          bearing: 0,
+        });
+      })
+      .catch(console.error);
   }, [selectedMission, mapbox]);
+  return null;
 
 }
+// ****************> we are here now
+// useEffect(() => { 
+//   if (mapbox && selectedMission.id >= MissionId.Advanture) {
+//     loadFeatures();
+//     loadMarkers();
+//     setupClickInteractions();
+//   }
+// }, [mapbox, selectedMission]);

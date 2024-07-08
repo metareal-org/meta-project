@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axiosInstance from "@/lib/axios-instance";
 import { useUserStore } from "@/store/player-store/useUserStore";
-
+import { updateUserNickname } from "@/lib/api/user";
 export default function MissionSetNickname() {
   const { mapbox, setIsFlying } = useMapStore.getState();
   const { selectedMission, setSelectedMission } = useMissionStore.getState();
@@ -32,16 +32,12 @@ export default function MissionSetNickname() {
           initialValues={{ username: "" }}
           validationSchema={validationSchema}
           onSubmit={(values, { setSubmitting }) => {
-            axiosInstance
-              .post("user/update/", {
-                nickname: values.username,
-              })
-              .then(() => {
-                setNickname(values.username);
-                openCharacterDesignAlert();
-                closeAlert("nickname-alert");
-                setSubmitting(false);
-              });
+            updateUserNickname(values.username).then(() => {
+              setNickname(values.username);
+              openCharacterDesignAlert();
+              closeAlert("nickname-alert");
+              setSubmitting(false);
+            });
           }}
         >
           {({ errors, touched, isValid }) => (
@@ -68,10 +64,7 @@ export default function MissionSetNickname() {
         {
           label: "Let's do it",
           onClick: () => {
-            axiosInstance
-              .post("user/update/", {
-                nickname: nickname,
-              })
+            updateUserNickname(nickname)
               .then((response) => {
                 console.log(response.data);
               })
@@ -95,4 +88,6 @@ export default function MissionSetNickname() {
       openChooseNicknameAlert();
     });
   }, [selectedMission]);
+  return null;
+
 }

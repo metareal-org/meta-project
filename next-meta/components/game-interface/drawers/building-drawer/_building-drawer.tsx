@@ -28,7 +28,7 @@ const SaleStatus = ({ isLoading, isForSale, price }: { isLoading: boolean; isFor
   isLoading ? (
     <Skeleton className="h-8 mx-auto w-2/5 my-2" />
   ) : (
-    <div className="text-center  border-t border-b text-lime border-white/50 text-xs py-2">
+    <div className="text-center border-t border-b text-lime border-white/50 text-xs py-2">
       {isForSale ? `This property is available for purchase at ${price} Meta` : "This property is not for sale"}
     </div>
   );

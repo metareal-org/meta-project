@@ -9,13 +9,14 @@ import useAvatarStore from "@/store/objects-store/useAvatarStore";
 import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "../mission-config";
 import useUnitStore from "@/store/world-store/useUnitStore";
-const DEBUG = true;
 export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
   const { address, status } = useAccount();
   const { data: signedSignature, signMessage } = useSignMessage();
+  const { selectedMission } = useMissionStore();
   const AUTH_ROUTE = `${SERVER}/user/authenticate/`;
   useEffect(() => {
+    if (selectedMission.id != MissionId.Initialize) return;
     const authenticate = async () => {
       if (!address) {
         setIsAuthValid(false);
@@ -35,7 +36,6 @@ export default function MissionInitialize() {
               },
             }
           );
-          DEBUG && console.log("Authentication successful", response.data);
           setIsAuthValid(true);
         } catch (error) {
           console.error("Authentication failed", error);

@@ -1,5 +1,4 @@
 import useMissionStore from "@/store/useMissionStore";
-import useFobStore from "@/store/objects-store/useFobStore";
 import { useEffect } from "react";
 import { MissionId } from "@/core/missions/mission-config";
 import useMapStore from "@/store/engine-store/useMapStore";
@@ -12,7 +11,7 @@ import useChestmanStore from "@/store/objects-store/useChestmanStore";
 import loadCar from "@/core/loaders/models-load/car-load";
 import useCarLogic from "@/hooks/useCarLogic";
 import loadChestman from "@/core/loaders/models-load/chestman-load";
-import axiosInstance from "@/lib/axios-instance";
+import { updateUserMission } from "@/lib/api/user";
 import useGemStore from "@/store/objects-store/useGemsStore";
 import useAlertStore from "@/store/gui-store/useAlertStore";
 import { Grid } from "@/components/ui/tags";
@@ -82,7 +81,6 @@ export default function MissionDriverToChestman() {
       loadCar();
       DEBUG && console.log("Car loaded");
     } else {
-
       openAlert({
         title: "Time to drive!",
         description: (
@@ -129,7 +127,7 @@ export default function MissionDriverToChestman() {
 
   useEffect(() => {
     if (selectedMission.id === MissionId.DriveToChestman) {
-      axiosInstance.post("user/update/", { current_mission: MissionId.DriveToChestman }).then((response) => {
+      updateUserMission(MissionId.DriveToChestman).then((response) => {
         DEBUG && console.log(response);
       });
     }
@@ -144,7 +142,7 @@ export default function MissionDriverToChestman() {
     carModel.addEventListener("ObjectChanged", handleObjectChanged);
     return () => {
       setIsReachedToChestman(true);
-      carModel.visible = false;
+      // carModel.visible = false;
       carModel.removeEventListener("ObjectChanged", handleObjectChanged);
     };
   }, [carModel, selectedMission, threebox]);

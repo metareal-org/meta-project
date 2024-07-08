@@ -3,5 +3,5 @@ import { loadMines } from "@/core/loaders/features-load/mines-load";
 
 export function loadFeatures() {
   loadLands();
-  loadMines();
+  // loadMines();
 }
