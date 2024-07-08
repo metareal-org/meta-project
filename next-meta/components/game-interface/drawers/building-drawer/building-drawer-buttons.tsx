@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import useDialogStore from "@/store/gui-store/useDialogStore";
-import useLandStore from "@/store/world-store/useLandStore";
+import useLandStore, { Land } from "@/store/world-store/useLandStore";
 import useUnitStore from "@/store/world-store/useUnitStore";
-import { MouseEventHandler, ReactNode, useState } from "react";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { MouseEventHandler, ReactNode, useState, useMemo } from "react";
 import { center } from "@turf/turf";
-import axiosInstance from "@/lib/axios-instance";
-
+import { updateUserPosition } from "@/lib/api/user";
 interface BuildingButtonProps {
   icon: ReactNode;
   text: ReactNode;
@@ -20,7 +20,7 @@ const BuildingButton = ({ icon, text, onClick, className = "", style = {}, disab
     style={style}
     className={`flex-col items-center justify-center p-4
     size-18 text-white transition duration-300 ease-out rounded-lg shadow-black/20 shadow hover:scale-105 ${className}
-    ${disabled ? 'grayscale pointer-events-none' : ''}`}
+    ${disabled ? "grayscale pointer-events-none" : ""}`}
     onClick={onClick}
     disabled={disabled}
   >
@@ -29,17 +29,19 @@ const BuildingButton = ({ icon, text, onClick, className = "", style = {}, disab
   </Button>
 );
 
-interface BuildingButtonsProps {
-  owner_id: number;
-  is_for_sale: boolean;
-}
-
-const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
+const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
   const [isMoveButtonDisabled, setIsMoveButtonDisabled] = useState(false);
-  const isOwner = owner_id === 1;
   const { setDialogState } = useDialogStore();
   const { moveMarker, marker } = useUnitStore();
   const { selectedLand } = useLandStore();
+  const { user } = useUserStore();
+
+  const { isOwner, isForSale } = useMemo(() => {
+    return {
+      isOwner: landDetails.owner_id === user?.id,
+      isForSale: landDetails.is_for_sale,
+    };
+  }, [landDetails, user]);
 
   const buttonConfigs = [
     {
@@ -53,20 +55,15 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
         const centerPoint = selectedLand?.geometry && center(selectedLand.geometry).geometry.coordinates;
         if (centerPoint) {
           console.log("Center point:", centerPoint);
-
-          axiosInstance
-            .post("/user/update", {
-              coordinates: JSON.stringify(centerPoint),
-            })
-            .then((r) => {
-              if (r.status === 200) {
-                const newCoordinates: [number, number] = centerPoint as [number, number];
-                moveMarker(marker as mapboxgl.Marker, newCoordinates);
-              }
-              setIsMoveButtonDisabled(false);
+          updateUserPosition(centerPoint as [number, number])
+            .then(() => {
+              const newCoordinates: [number, number] = centerPoint as [number, number];
+              moveMarker(marker as mapboxgl.Marker, newCoordinates);
             })
             .catch((e) => {
               console.error(e);
+            })
+            .finally(() => {
               setIsMoveButtonDisabled(false);
             });
         } else {
@@ -77,15 +74,7 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
       condition: true,
       disabled: isMoveButtonDisabled,
     },
-    {
-      style: {
-        background: "linear-gradient(180deg, #edc240 0%, #EC8917 100%)",
-      },
-      icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/gear-9562135-7800536.png?f=webp" />,
-      text: "Re-Price",
-      onClick: () => setDialogState("buildingUpdateSellDialog", true),
-      condition: isOwner && is_for_sale,
-    },
+
     {
       style: {
         background: "linear-gradient(180deg, #779EEC 0%, #3c71de 100%)",
@@ -93,7 +82,7 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/offer-folder-6842108-5604502.png?f=webp" />,
       text: "Offers",
       onClick: () => setDialogState("buildingOfferListDialog", true),
-      condition: isOwner,
+      condition: true,
     },
     {
       style: {
@@ -102,7 +91,16 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/financial-startup-8663166-6945082.png?f=webp" />,
       text: "Sell",
       onClick: () => setDialogState("buildingSellDialog", true),
-      condition: isOwner && !is_for_sale,
+      condition: isOwner && !isForSale,
+    },
+    {
+      style: {
+        background: "linear-gradient(180deg, #edc240 0%, #EC8917 100%)",
+      },
+      icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/gear-9562135-7800536.png?f=webp" />,
+      text: "Re-Price",
+      onClick: () => setDialogState("buildingUpdateSellDialog", true),
+      condition: isOwner && isForSale,
     },
     {
       style: {
@@ -111,7 +109,7 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/solar-house-7303323-6000040.png?f=webp" />,
       text: "Buy",
       onClick: () => setDialogState("buildingBuyDialog", true),
-      condition: !isOwner && is_for_sale,
+      condition: !isOwner && isForSale,
     },
     {
       style: {
@@ -124,17 +122,13 @@ const BuildingButtons = ({ owner_id, is_for_sale }: BuildingButtonsProps) => {
     },
   ];
 
+  const availableButtons = buttonConfigs.filter((config) => config.condition);
+
   return (
-    <div className="flex py-4 gap-2">
-      {buttonConfigs.map((config, index) =>
-        config.condition && (
-          <BuildingButton
-            key={index}
-            {...config}
-            disabled={config.disabled}
-          />
-        )
-      )}
+    <div className="flex py-4 gap-2 justify-center">
+      {availableButtons.map((config, index) => (
+        <BuildingButton key={index} {...config} disabled={config.disabled} />
+      ))}
     </div>
   );
 };

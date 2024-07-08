@@ -15,7 +15,7 @@ export default function MissionAdvanture() {
   useEffect(() => {
     if (selectedMission?.id !== MissionId.Advanture || !mapbox) return;
 
-    axiosInstance.post("user/update", {
+    axiosInstance.post("user/update/", {
       current_mission: MissionId.Advanture,
     });
 

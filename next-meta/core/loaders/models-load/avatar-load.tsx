@@ -3,7 +3,6 @@ import useThreeboxStore, { ThreeboxStore } from "@/store/engine-store/useThreebo
 import useAvatarStore from "@/store/objects-store/useAvatarStore";
 import useLoadingStore from "@/store/gui-store/useLoadingStore";
 import { AZADI_TOWER_COORDINATES } from "@/core/constants";
-import axiosInstance from "@/lib/axios-instance";
 
 export default function loadAvatar() {
   const { mapbox } = useMapStore.getState();

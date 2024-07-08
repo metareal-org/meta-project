@@ -50,7 +50,7 @@ export default function MissionCollectGems() {
 
   useEffect(() => {
     if (!isAvatarLoaded) return;
-    axiosInstance.post("user/update", {
+    axiosInstance.post("user/update/", {
       current_mission: MissionId.CollectGems,
     });
     useAvatarGemsLogic();

@@ -33,7 +33,7 @@ export default function MissionSetNickname() {
           validationSchema={validationSchema}
           onSubmit={(values, { setSubmitting }) => {
             axiosInstance
-              .post("user/update", {
+              .post("user/update/", {
                 nickname: values.username,
               })
               .then(() => {
@@ -69,7 +69,7 @@ export default function MissionSetNickname() {
           label: "Let's do it",
           onClick: () => {
             axiosInstance
-              .post("user/update", {
+              .post("user/update/", {
                 nickname: nickname,
               })
               .then((response) => {

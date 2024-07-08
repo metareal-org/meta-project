@@ -1,73 +1,48 @@
 import { ColumnDef, SortingState, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
-
 import { Flex } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import moment from "moment";
 import { useState } from "react";
+import useLandStore from "@/store/world-store/useLandStore";
+import numeral from "numeral";
 
-const data: Payment[] = [
-  {
-    id: "1",
-    offer: 316,
-    user: "DanteVelli",
-    date: Date.now(),
-  },
-  {
-    id: "2",
-    offer: 242,
-    user: "JohnDoe",
-    date: Date.now() - 3600 * 1000 * 24,
-  },
-  {
-    id: "3",
-    offer: 837,
-    user: "Eminem",
-    date: Date.now() - 3600 * 1000 * 12,
-  },
-  {
-    id: "4",
-    offer: 874,
-    user: "Richard Dawkins",
-    date: Date.now() - 3600 * 1000 * 5,
-  },
-  {
-    id: "5",
-    offer: 721,
-    user: "Hannah Montana",
-    date: Date.now() - 3600 * 1000 * 3,
-  },
-];
-
-export type Payment = {
+export type Offer = {
   id: string;
   offer: number;
   user: string;
-  date: any;
+  date: number;
 };
 
-export default function BuildingOfferListTable({ sortable = true }) {
-  const columns: ColumnDef<Payment>[] = [
+interface BuildingOfferListTableProps {
+  data: Offer[];
+  sortable?: boolean;
+  isLoading: boolean;
+}
+
+export default function BuildingOfferListTable({ data, sortable = true, isLoading }: BuildingOfferListTableProps) {
+
+  const columns: ColumnDef<Offer>[] = [
     {
       accessorKey: "user",
       header: ({ column }) => {
         return sortable ? (
-          <Button variant="ghost" className="px-0" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Username
+          <Button variant="ghost" className="!px-0 !pl-3 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            Nickname
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         ) : (
-          <div>Username</div>
+          <div>Nickname</div>
         );
       },
-      cell: ({ row }) => <div className="capitalize">{row.getValue("user")}</div>,
+      cell: ({ row }) => <div className="capitalize !pl-3">{row.getValue("user")}</div>,
     },
     {
       accessorKey: "date",
       header: ({ column }) => {
         return sortable ? (
-          <Button variant="ghost" className="px-0" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Date
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -77,7 +52,7 @@ export default function BuildingOfferListTable({ sortable = true }) {
       },
       cell: ({ row }) => {
         const date = row.getValue("date");
-        const formattedDate = moment(date as Date).fromNow();
+        const formattedDate = moment(date as number).fromNow();
         return <div className="lowercase">{formattedDate}</div>;
       },
     },
@@ -85,7 +60,7 @@ export default function BuildingOfferListTable({ sortable = true }) {
       accessorKey: "offer",
       header: ({ column }) => {
         return sortable ? (
-          <Button variant="ghost" className="px-0" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Offer
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -95,21 +70,20 @@ export default function BuildingOfferListTable({ sortable = true }) {
       },
       cell: ({ row }) => {
         const offer = parseFloat(row.getValue("offer"));
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(offer);
+        const formatted = numeral(offer).format('$0,0');
         return <div className="font-medium">{formatted}</div>;
       },
     },
     {
       accessorKey: "id",
-      header: () => (sortable ? <div>Action</div> : null),
+      header: () => (sortable ? <div className="flex justify-center">Action</div> : null),
       cell: ({ row }) => {
         return sortable ? (
           <>
             <Flex className="gap-2 items-center justify-center">
-              <Button size={"sm"}>Accept</Button>
+              <Button size={"sm"} onClick={() => handleAcceptOffer(row.getValue("id"))}>
+                Accept
+              </Button>
             </Flex>
           </>
         ) : null;
@@ -139,6 +113,8 @@ export default function BuildingOfferListTable({ sortable = true }) {
     },
   });
 
+  const handleAcceptOffer = (offer_id: string) => {};
+
   return (
     <div className="w-full pt-4">
       <div className="rounded-md border">
@@ -153,7 +129,22 @@ export default function BuildingOfferListTable({ sortable = true }) {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <div className="flex justify-center items-center h-32">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : data.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (

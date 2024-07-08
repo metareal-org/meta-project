@@ -1,6 +1,6 @@
 import { create } from "zustand";
 export interface UserState {
-  user: object | null;
+  user: any | null;
   nickname: string;
   setNickname: (nickname: string) => void;
   setUser: (user: any) => void;

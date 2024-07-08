@@ -129,7 +129,7 @@ export default function MissionDriverToChestman() {
 
   useEffect(() => {
     if (selectedMission.id === MissionId.DriveToChestman) {
-      axiosInstance.post("user/update", { current_mission: MissionId.DriveToChestman }).then((response) => {
+      axiosInstance.post("user/update/", { current_mission: MissionId.DriveToChestman }).then((response) => {
         DEBUG && console.log(response);
       });
     }

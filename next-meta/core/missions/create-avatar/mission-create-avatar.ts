@@ -12,7 +12,7 @@ export default function MissionCreateAvatar() {
     if (selectedMission.id !== MissionId.CreateAvatar) return;
 
     axiosInstance
-      .post("user/update", {
+      .post("user/update/", {
         current_mission: MissionId.CreateAvatar,
       })
       .then((response) => {
@@ -21,7 +21,7 @@ export default function MissionCreateAvatar() {
 
     if (avatarUrl !== "" && avatarUrl !== null && avatarUrl !== DEFAULT_AVATAR) {
       axiosInstance
-        .post("user/update", {
+        .post("user/update/", {
           avatar_url: avatarUrl,
         })
         .then((response) => {

@@ -11,7 +11,7 @@
         {
             "type": "Feature",
             "properties": {
-                "fid": "w324022019",
+                "id": "w324022019",
                 "osm_id": "324022019",
                 "osm_type": "way",
                 "alt_name": "",
@@ -274,7 +274,7 @@
         {
             "type": "Feature",
             "properties": {
-                "fid": "w222858917",
+                "id": "w222858917",
                 "osm_id": "222858917",
                 "osm_type": "way",
                 "alt_name": "",

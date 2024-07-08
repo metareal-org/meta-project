@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { MapboxGeoJSONFeature } from "mapbox-gl";
 
 export interface Mine {
-  fid: number;
+  id: number;
   owner_id: number;
   is_for_sale: boolean;
   auction?: boolean;

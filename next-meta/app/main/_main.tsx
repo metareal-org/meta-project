@@ -7,7 +7,7 @@ import GetLocation from "@/helpers/get-location";
 import { Fragment, useEffect, useState } from "react";
 import MissionsManager from "@/components/game-engine/missions";
 import SpinWheel from "@/components/minigames/spinwheel";
-import axios from "axios";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function Main() {
   const [isClient, setIsClient] = useState(false);
@@ -25,6 +25,7 @@ export default function Main() {
       <GameEngine />
       <GetLocation />
       <GemProgressBar />
+      <Toaster />
     </Fragment>
   );
 }

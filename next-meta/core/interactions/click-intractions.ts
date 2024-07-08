@@ -14,15 +14,15 @@ export const setupClickInteractions = () => {
       handleLandClick(feature, setDrawerState);
     }
   });
-  mapbox.on("click", "mines", (e) => {
-    if (e.features && e.features.length > 0) {
-      const feature = e.features[0];
-      handleLandClick(feature, setDrawerState);
-    }
-  });
+  // mapbox.on("click", "mines", (e) => {
+  //   if (e.features && e.features.length > 0) {
+  //     const feature = e.features[0];
+  //     handleLandClick(feature, setDrawerState);
+  //   }
+  // });
   mapbox.on("click", (e) => {
     const features = mapbox.queryRenderedFeatures(e.point, {
-      layers: ["citylands", "mines"],
+      layers: ["citylands"],
     });
     if (features.length === 0) {
       deselectLand();
@@ -35,10 +35,10 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
   const { mapbox } = useMapStore.getState();
   const drawerLand: { [key: string]: string } = {
     citylands: "buildingDrawer",
-    mines: "mineDrawer",
+    // mines: "mineDrawer",
   };
 
-  if (selectedLand && selectedLand.properties?.fid === feature.properties?.fid) {
+  if (selectedLand && selectedLand.properties?.id === feature.properties?.id) {
     deselectLand();
   } else {
     deselectLand();
@@ -74,7 +74,7 @@ const updateFillColor = (feature: MapboxGeoJSONFeature) => {
     const layerId = feature.layer.id;
     mapbox.setPaintProperty(layerId, "fill-color", [
       "case",
-      ["==", ["get", "fid"], feature.properties?.fid],
+      ["==", ["get", "id"], feature.properties?.id],
       "#83a66c",
       ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"],
     ]);

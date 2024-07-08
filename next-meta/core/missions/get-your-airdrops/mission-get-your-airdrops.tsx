@@ -22,7 +22,7 @@ export default function MissionGetYourAirdrops() {
 
   useEffect(() => {
     if (selectedMission?.id !== MissionId.GetYourAirdrops) return;
-    axiosInstance.post("user/update", {
+    axiosInstance.post("user/update/", {
       current_mission: MissionId.GetYourAirdrops,
     });
     if (!mapbox) return;

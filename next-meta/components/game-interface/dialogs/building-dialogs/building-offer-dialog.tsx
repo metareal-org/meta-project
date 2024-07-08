@@ -1,44 +1,198 @@
+import { useState, useEffect } from "react";
 import { CustomDialog } from "@/components/game-interface/dialogs/_dialogs";
 import useDialogStore from "@/store/gui-store/useDialogStore";
+import useLandStore from "@/store/world-store/useLandStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import BuildingOfferListTable from "./building-offer-list-dialog/building-offer-list-dialog-table";
+import axiosInstance from "@/lib/axios-instance";
+import { useToast } from "@/components/ui/use-toast";
+import { AlertCircle } from "lucide-react";
+import { submitOffer, updateOffer } from "@/lib/api/offer";
 
 export default function BuildingOfferDialog() {
   const { buildingOfferDialog, setDialogState } = useDialogStore();
+  const { selectedLand } = useLandStore();
+  const [offerPrice, setOfferPrice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [highestOffer, setHighestOffer] = useState<number | null>(null);
+  const [userOffer, setUserOffer] = useState<{ id: number; offer: number; date: number } | null>(null);
+  const { toast } = useToast();
 
-  const handleOfferConfirmClick = () => {
-    setDialogState("buildingOfferDialog", false);
+  useEffect(() => {
+    if (selectedLand && buildingOfferDialog) {
+      fetchOffers();
+    }
+  }, [selectedLand, buildingOfferDialog]);
+
+  const fetchOffers = async () => {
+    if (!selectedLand) return;
+    try {
+      const response = await axiosInstance.get(`/offers/${selectedLand.properties?.id}`);
+      setHighestOffer(response.data.highestOffer);
+      setUserOffer(response.data.userOffer);
+      if (response.data.userOffer) {
+        setOfferPrice(response.data.userOffer.offer.toString());
+      }
+    } catch (error) {
+      console.error("Error fetching offers:", error);
+    }
+  };
+
+  const handleOfferConfirmClick = async () => {
+    if (!selectedLand) {
+      toast({
+        variant: "destructive",
+        title: "No land selected",
+        description: "Please select a land before submitting an offer",
+      });
+      return;
+    }
+    if (!offerPrice || isNaN(Number(offerPrice))) {
+      toast({
+        variant: "destructive",
+        title: "Invalid offer",
+        description: "Please enter a valid offer price",
+      });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      if (userOffer) {
+        await updateOffer(userOffer.id, Number(offerPrice));
+      } else {
+        await submitOffer(selectedLand.properties?.id, Number(offerPrice));
+      }
+      toast({
+        title: userOffer ? "Bid updated" : "Bid placed",
+        description: userOffer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
+      });
+      fetchOffers();
+    } catch (error) {
+      console.error("Error submitting/updating offer:", error);
+      toast({
+        variant: "destructive",
+        title: "Submission failed",
+        description: "Failed to place/update bid. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteOffer = async () => {
+    if (!userOffer) return;
+    setIsSubmitting(true);
+    try {
+      await axiosInstance.post(`/offers/delete/${userOffer.id}`);
+      toast({
+        title: "Bid withdrawn",
+        description: "Your bid has been withdrawn successfully",
+      });
+      setUserOffer(null);
+      setOfferPrice("");
+      fetchOffers();
+    } catch (error) {
+      console.error("Error deleting offer:", error);
+      toast({
+        variant: "destructive",
+        title: "Withdrawal failed",
+        description: "Failed to withdraw bid. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <CustomDialog
       open={buildingOfferDialog}
       onOpenChange={() => setDialogState("buildingOfferDialog", false)}
-      title="Other Bids"
-      description="Place your bid for the empty land plot."
+      title="Submit Your Offer"
+      description="Make a competitive bid for this prime property."
     >
-      <div className="grid gap-4 py-4">
-        <div className="rounded-lg overflow-hidden">
+      <div className="space-y-6">
+        <div className="rounded-lg overflow-hidden shadow-lg">
           <img
-            className="w-full h-auto"
+            className="w-full h-48 object-cover"
             src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
-            alt="Empty Land"
+            alt="Property"
           />
         </div>
+
+        {selectedLand && (
+          <div className="bg-gradient-to-r from-secondary/20 to-primary/20 py-4 rounded-lg space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Land ID:</span>
+              <span className="font-semibold text-primary">{selectedLand.properties?.id}</span>
+            </div>
+
+            {highestOffer && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium flex items-center gap-2">Highest Bid:</span>
+                  <span className="font-semibold text-green-500">${highestOffer.toLocaleString()}</span>
+                </div>
+
+                {userOffer ? (
+                  <>
+                    <div className="flex border-t pt-2 justify-between items-center">
+                      <span className="text-sm font-medium flex items-center gap-2">Your Current Bid:</span>
+                      <span className="font-semibold text-blue-500">${userOffer.offer.toLocaleString()}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex border items-center justify-center gap-2  p-2 rounded-md">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm">You haven't placed a bid yet</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
-          <BuildingOfferListTable sortable={false} />
-        </div>
-        <div>
-          <p className="text-primary">Your Bid</p>
-          <Input className="w-full" placeholder="Your Bid" type="number" min={0} max={100000000000} step={100} />
+          <label htmlFor="offerPrice" className="block text-sm font-medium mb-2">
+            Your Offer Amount
+          </label>
+          <div className="relative rounded-md shadow-sm">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <span className="text-gray-500 sm:text-sm">$</span>
+            </div>
+            <Input
+              id="offerPrice"
+              className="pl-7 pr-12 text-lg"
+              placeholder="0.00"
+              type="number"
+              min={0}
+              max={100000000000}
+              step={100}
+              value={offerPrice}
+              onChange={(e) => setOfferPrice(e.target.value)}
+            />
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+              <span className="text-gray-500 sm:text-sm">USD</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex justify-end gap-2">
+
+      <div className="flex justify-end gap-2 mt-6">
         <Button variant="outline" onClick={() => setDialogState("buildingOfferDialog", false)}>
           Cancel
         </Button>
-        <Button onClick={handleOfferConfirmClick}>Submit</Button>
+        {userOffer && (
+          <Button variant="destructive" onClick={handleDeleteOffer} disabled={isSubmitting}>
+            Remove
+          </Button>
+        )}
+        <Button
+          onClick={handleOfferConfirmClick}
+          disabled={isSubmitting || !selectedLand}
+          className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-300"
+        >
+          {isSubmitting ? "Processing..." : userOffer ? "Update Bid" : "Place Bid"}
+        </Button>
       </div>
     </CustomDialog>
   );

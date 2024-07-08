@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { Flex, Grid } from "@/components/ui/tags";
 import useAvatarStore, { DEFAULT_AVATAR } from "@/store/objects-store/useAvatarStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import axios from "axios";
 import { ChevronDown } from "lucide-react";
 import Cookies from "js-cookie";
 import { useDisconnect } from "wagmi";
+import { fetchOutfitGender } from "@/lib/api/user";
+
 
 const Avatar = () => {
   const { nickname } = useUserStore();
@@ -15,10 +16,9 @@ const Avatar = () => {
   const [outfitGender, setOutfitGender] = useState(null);
 
   useEffect(() => {
-    if (avatarUrl && avatarUrl != DEFAULT_AVATAR) {
-      axios
-        .get(`${avatarUrl.replace(".glb", "").split("?")[0]}.json`)
-        .then((response) => setOutfitGender(response.data.outfitGender))
+    if (avatarUrl && avatarUrl !== DEFAULT_AVATAR) {
+      fetchOutfitGender(avatarUrl)
+        .then((outfitGender) => setOutfitGender(outfitGender))
         .catch((error) => console.error("Error fetching outfit gender:", error));
     }
   }, [avatarUrl]);
