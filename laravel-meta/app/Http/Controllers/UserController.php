@@ -11,7 +11,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class UserController extends Controller
 {
-
     // helpers
     private function authenticateWithToken($token, $address)
     {
@@ -82,7 +81,6 @@ class UserController extends Controller
         ], 200);
     }
 
-
     private function isSignatureVerified(RecoverAddressRequest $request): bool
     {
         try {
@@ -119,21 +117,24 @@ class UserController extends Controller
     public function show(Request $request)
     {
         $user = $request->user();
-
         return response()->json([
             'user' => $user
         ]);
     }
 
-
     public function update(Request $request)
     {
+
         $user = $request->user();
         $validatedData = $request->validate([
-            'current_mission' => 'sometimes|integer|min:0',
+            'current_mission' => 'sometimes|integer|min:0|max:100',
             'avatar_url' => 'sometimes|string|max:255',
             'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
+            'cp_amount_free' => 'sometimes|integer|min:0',
+            'cp_amount_locked' => 'sometimes|integer|min:0',
+            'meta_amount_free' => 'sometimes|integer|min:0',
+            'meta_amount_locked' => 'sometimes|integer|min:0',
         ]);
 
         try {
