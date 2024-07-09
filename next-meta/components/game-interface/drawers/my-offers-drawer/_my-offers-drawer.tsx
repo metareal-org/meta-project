@@ -1,3 +1,5 @@
+// components/game-interface/drawers/my-offers-drawer/_my-offers-drawer.tsx
+
 import React, { useState, useEffect, useMemo } from "react";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import { XCircle, Search, DollarSign, MapPin, Trash2 } from "lucide-react";
@@ -6,79 +8,59 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { fetchUserOffers, deleteOffer } from "@/lib/api/offer";
+import { deleteOffer } from "@/lib/api/offer";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { useToast } from "@/components/ui/use-toast";
-import { LngLatBounds } from "mapbox-gl";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
+
 interface Offer {
   id: number;
   land_id: number;
   price: number;
   created_at: string;
   is_accepted: boolean;
+  land: {
+    coordinates: string;
+    center_point?: string;
+  };
 }
 
 export default function MyOffersDrawer() {
   const { myOffersDrawer, setDrawerState } = useDrawerStore();
   const { mapbox } = useMapStore();
   const { toast } = useToast();
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { playerOffers, isLoading, error, fetchPlayerOffers, removeOffer } = usePlayerOffersStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     if (myOffersDrawer) {
-      fetchOffers();
+      fetchPlayerOffers();
     }
-  }, [myOffersDrawer]);
-
-  const fetchOffers = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await fetchUserOffers();
-      setOffers(data);
-    } catch (err) {
-      console.error("Error fetching offers:", err);
-      setError("Failed to load offers. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [myOffersDrawer, fetchPlayerOffers]);
 
   const handleClose = () => {
     setDrawerState("myOffersDrawer", false);
   };
 
-  const handleFlyToLand = (landId: number) => {
-    if (mapbox) {
-      const source = mapbox.getSource("citylands") as mapboxgl.GeoJSONSource;
-      if (source) {
-        const features = (source as any)._data.features;
-        const feature = features.find((f: { properties: { id: number } }) => f.properties.id === landId);
-        if (feature) {
-          const bounds = new LngLatBounds();
-          if (feature.geometry.type === "Polygon") {
-            feature.geometry.coordinates[0].forEach((coord: [number, number]) => {
-              bounds.extend(coord);
-            });
-          } else if (feature.geometry.type === "MultiPolygon") {
-            feature.geometry.coordinates.forEach((polygon: [number, number][][]) => {
-              polygon[0].forEach((coord: [number, number]) => {
-                bounds.extend(coord);
-              });
-            });
-          }
-          const center = bounds.getCenter();
-          mapbox.flyTo({
-            center: center,
-            zoom: 20,
-            duration: 2000,
-          });
-        }
+  const handleFlyToLand = (offer: Offer) => {
+    console.log("Fly to land:", offer);
+    if (mapbox && offer.land?.center_point) {
+      try {
+        const centerPoint = JSON.parse(offer.land.center_point);
+        mapbox.flyTo({
+          center: [centerPoint.longitude, centerPoint.latitude],
+          zoom: 20,
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error("Error parsing center point:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fly to land location.",
+        });
       }
     }
   };
@@ -86,11 +68,11 @@ export default function MyOffersDrawer() {
   const handleRemoveOffer = async (offerId: number) => {
     try {
       await deleteOffer(offerId);
+      removeOffer(offerId);
       toast({
         title: "Offer removed",
         description: "Your offer has been successfully removed.",
       });
-      fetchOffers(); // Refresh the offers list
     } catch (error) {
       console.error("Error removing offer:", error);
       toast({
@@ -102,7 +84,7 @@ export default function MyOffersDrawer() {
   };
 
   const filteredOffers = useMemo(() => {
-    return offers
+    return playerOffers
       .filter((offer) => offer.land_id.toString().toLowerCase().includes(searchTerm.toLowerCase()))
       .filter((offer) => {
         if (statusFilter === "all") return true;
@@ -110,7 +92,7 @@ export default function MyOffersDrawer() {
         if (statusFilter === "pending") return !offer.is_accepted;
         return true;
       });
-  }, [offers, searchTerm, statusFilter]);
+  }, [playerOffers, searchTerm, statusFilter]);
 
   const OfferSkeleton = () => (
     <Card className="hover:bg-white/10">
@@ -181,7 +163,7 @@ export default function MyOffersDrawer() {
                   <div className="flex items-center">
                     <div className="w-16 h-16 mr-3 relative">
                       <img
-                        src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg" 
+                        src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
                         alt="Offer"
                         className="w-full h-full object-cover rounded-md shadow-sm"
                       />
@@ -199,7 +181,7 @@ export default function MyOffersDrawer() {
                         </div>
                       </div>
                       <div className="flex justify-end mt-2 space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => handleFlyToLand(offer.land_id)} className="p-1">
+                        <Button size="sm" variant="outline" onClick={() => handleFlyToLand(offer)} className="p-1">
                           <MapPin size={14} />
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => handleRemoveOffer(offer.id)} className="p-1">

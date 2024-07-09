@@ -22,11 +22,15 @@ export const fetchLandDetails = async (id: number, signal?: AbortSignal) => {
     return response.data;
   } catch (error) {
     if (axiosInstance.isCancel(error)) {
-      console.log('Request canceled:', (error as Error).message);
+      console.log("Request canceled:", (error as Error).message);
       throw error;
     }
     throw error;
   }
+};
+export const fetchUserLands = async () => {
+  const response = await axiosInstance.get(`${SERVER}/lands/user`);
+  return response.data;
 };
 
 export const setLandPrice = async (id: number, price: number) => {

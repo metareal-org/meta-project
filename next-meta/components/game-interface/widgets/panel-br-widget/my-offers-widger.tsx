@@ -18,7 +18,7 @@ export default function MyOffersWidget() {
 
   return (
     <>
-      <div className="fixed z-10 bottom-[142px] right-5">
+      <div className="fixed z-10 bottom-[140px] right-5">
         <Button variant="theme" onClick={handleClick} className="my-offers !size-12 text-xl !p-0">
           <TagIcon size={20} />
         </Button>

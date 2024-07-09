@@ -1,23 +1,43 @@
-import React, { useState, useMemo, useContext } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
-import useLandStore, { Land } from "@/store/world-store/useLandStore";
+import useMapStore from "@/store/engine-store/useMapStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { DollarSign, Maximize2, Search, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { LngLatBounds } from "mapbox-gl";
-import useMapStore from "@/store/engine-store/useMapStore";
 import { Title } from "@/components/ui/tags";
+import { fetchUserLands } from "@/lib/api/land";
+import { useToast } from "@/components/ui/use-toast";
+
+interface Land {
+  id: number;
+  owner_id: number;
+  is_for_sale: boolean;
+  fixed_price: number;
+  type: string;
+  size: number;
+  coordinates: string;
+  center_point: string; // JSON string containing longitude and latitude
+}
 
 export default function MylandsDrawer() {
   const { mylandsDrawer, setDrawerState } = useDrawerStore();
-  const { lands } = useLandStore();
   const { user } = useUserStore();
   const { mapbox } = useMapStore();
-
+  const { toast } = useToast();
+  const [lands, setLands] = useState<Land[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [saleFilter, setSaleFilter] = useState("all");
+
+  useEffect(() => {
+    if (mylandsDrawer) {
+      fetchUserLands().then((fetchedLands) => {
+        console.log(fetchedLands);
+        setLands(fetchedLands);
+      });
+    }
+  }, [mylandsDrawer]);
 
   const handleClose = () => {
     setDrawerState("mylandsDrawer", false);
@@ -26,7 +46,6 @@ export default function MylandsDrawer() {
   const filteredLands = useMemo(() => {
     if (!user?.id) return [];
     return lands
-      .filter((land: Land) => land.owner_id === user.id)
       .filter((land: Land) => land.id.toString().toLowerCase().includes(searchTerm.toLowerCase()))
       .filter((land: Land) => {
         if (saleFilter === "all") return true;
@@ -37,31 +56,21 @@ export default function MylandsDrawer() {
   }, [lands, user?.id, searchTerm, saleFilter]);
 
   const handleCardClick = (land: Land) => {
-    if (mapbox) {
-      const source = mapbox.getSource("citylands") as mapboxgl.GeoJSONSource;
-      if (source) {
-        const features = (source as any)._data.features;
-        const feature = features.find((f: { properties: { id: number } }) => f.properties.id === land.id);
-        if (feature) {
-          const bounds = new LngLatBounds();
-          if (feature.geometry.type === "Polygon") {
-            feature.geometry.coordinates[0].forEach((coord: [number, number]) => {
-              bounds.extend(coord);
-            });
-          } else if (feature.geometry.type === "MultiPolygon") {
-            feature.geometry.coordinates.forEach((polygon: [number, number][][]) => {
-              polygon[0].forEach((coord: [number, number]) => {
-                bounds.extend(coord);
-              });
-            });
-          }
-          const center = bounds.getCenter();
-          mapbox.flyTo({
-            center: center,
-            zoom: 20,
-            duration: 2000,
-          });
-        }
+    if (mapbox && land.center_point) {
+      try {
+        const centerPoint = JSON.parse(land.center_point);
+        mapbox.flyTo({
+          center: [centerPoint.longitude, centerPoint.latitude],
+          zoom: 19,
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error("Error parsing center point:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fly to land location.",
+        });
       }
     }
   };
@@ -113,7 +122,7 @@ export default function MylandsDrawer() {
                       <div className="flex items-center text-xs text-muted-foreground">
                         <Maximize2 className="mr-1 h-3 w-3" />
                         <span>
-                          480 M<sup>2</sup>
+                          {land.size} M<sup>2</sup>
                         </span>
                       </div>
                     </div>

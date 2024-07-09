@@ -52,6 +52,7 @@ const useLandStore = create<LandStoreState>((set, get) => ({
   fetchLands: async (bounds, zoom) => {
     try {
       const lands = await fetchLandsFromServer(bounds, zoom);
+      console.log(lands);
       set({ lands });
       return lands;
     } catch (error) {
