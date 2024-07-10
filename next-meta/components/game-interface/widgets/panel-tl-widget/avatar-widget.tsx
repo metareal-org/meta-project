@@ -18,7 +18,7 @@ const Avatar = () => {
   useEffect(() => {
     if (avatarUrl && avatarUrl !== DEFAULT_AVATAR) {
       fetchOutfitGender(avatarUrl)
-        .then((outfitGender) => setOutfitGender(outfitGender))
+        .then((outfitGender) => setOutfitGender(outfitGender as any))
         .catch((error) => console.error("Error fetching outfit gender:", error));
     }
   }, [avatarUrl]);

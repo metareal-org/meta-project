@@ -7,8 +7,10 @@ type Coordinates = [number, number];
 type CpMetaAction = "add" | "remove" | "lock" | "unlock" | "setExact";
 
 interface UserUpdateResponse {
-  message: string;
-  user: UserData;
+  data: {
+    message: string;
+    user: UserData;
+  };
 }
 
 interface UserData {
@@ -33,7 +35,7 @@ interface OutfitGenderResponse {
 // API Functions
 export const fetchUser = async (): Promise<UserData> => {
   const response = await axiosInstance.get<UserData>("/user/show");
-  console.log(response)
+  console.log(response);
   return response.data;
 };
 

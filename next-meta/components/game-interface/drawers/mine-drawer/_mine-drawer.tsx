@@ -64,8 +64,8 @@ const MetaTokenStaking = () => {
 };
 export default function MineDrawer() {
   const { mineDrawer } = useDrawerStore();
-  const { selectedLand } = useLandStore();
-  if (!mineDrawer || !selectedLand) return null;
+  const { selectedLandId } = useLandStore();
+  if (!mineDrawer || !selectedLandId) return null;
   return (
     <div className="fixed inset-y-0 z-10 bg-black h-max right-10 my-auto w-full max-w-sm shadow-lg rounded-t-lg p-4">
       <div className="mb-4 text-center">
