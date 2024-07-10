@@ -1,7 +1,7 @@
-// components/game-interface/drawers/my-offers-drawer/_my-offers-drawer.tsx
-
 import React, { useState, useEffect, useMemo } from "react";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
+import useMapStore from "@/store/engine-store/useMapStore";
+import useLandStore from "@/store/world-store/useLandStore";
 import { XCircle, Search, DollarSign, MapPin, Trash2 } from "lucide-react";
 import { Title } from "@/components/ui/tags";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { deleteOffer } from "@/lib/api/offer";
-import useMapStore from "@/store/engine-store/useMapStore";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
@@ -29,6 +28,7 @@ interface Offer {
 export default function MyOffersDrawer() {
   const { myOffersDrawer, setDrawerState } = useDrawerStore();
   const { mapbox } = useMapStore();
+  const { setSelectedLandId } = useLandStore();
   const { toast } = useToast();
   const { playerOffers, isLoading, error, fetchPlayerOffers, removeOffer } = usePlayerOffersStore();
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,15 +45,19 @@ export default function MyOffersDrawer() {
   };
 
   const handleFlyToLand = (offer: Offer) => {
-    console.log("Fly to land:", offer);
     if (mapbox && offer.land?.center_point) {
       try {
         const centerPoint = JSON.parse(offer.land.center_point);
         mapbox.flyTo({
           center: [centerPoint.longitude, centerPoint.latitude],
-          zoom: 20,
+          zoom: 19,
           duration: 2000,
         });
+        
+        // Set the selected land and open the building drawer
+        setSelectedLandId(offer.land_id);
+        setDrawerState("buildingDrawer", true);
+        
       } catch (error) {
         console.error("Error parsing center point:", error);
         toast({
@@ -124,7 +128,7 @@ export default function MyOffersDrawer() {
     <div className="fixed bottom-20 z-10 bg-background min-h-[200px] right-20 my-auto w-full max-w-sm shadow-lg rounded-lg p-4 border border-border">
       <div className="relative h-[60vh] flex flex-col">
         <header className="flex pb-2 justify-between items-center">
-          <Title className="text-teal font-semibold">My Offers</Title>
+          <Title className="text-teal ">My Offers</Title>
           <XCircle size={18} className="cursor-pointer" onClick={handleClose} />
         </header>
 
@@ -155,7 +159,7 @@ export default function MyOffersDrawer() {
           ) : error ? (
             <p className="text-red">{error}</p>
           ) : filteredOffers.length === 0 ? (
-            <p>No offers found.</p>
+            <div className="text-sm absolute bottom-0 ">No offers found.</div>
           ) : (
             filteredOffers.map((offer: Offer) => (
               <Card key={offer.id} className="hover:bg-white/10">

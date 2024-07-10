@@ -1,8 +1,7 @@
-// components/game-interface/GameInterface.tsx
 import React, { useEffect, useState } from "react";
 import Dialogs from "@/components/game-interface/dialogs/_dialogs";
 import Drawers from "@/components/game-interface/drawers/_drawers";
-import Widgets from "@/components/game-interface/widgets";
+import Widgets from "@/components/game-interface/widgets/_widgets";
 import { useMissionStore } from "@/store/useMissionStore";
 import Alert from "./alerts/_alert";
 import LoadingScreen from "./screens/loading-screen";

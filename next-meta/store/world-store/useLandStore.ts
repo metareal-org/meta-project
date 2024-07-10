@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { MapboxGeoJSONFeature } from "mapbox-gl";
 import axiosInstance from "@/lib/axios-instance";
 import { fetchLandsFromServer, fetchLandDetails } from "@/lib/api/land";
+import useMapStore from "@/store/engine-store/useMapStore";
 
 export interface Land {
   id: number;
@@ -9,7 +10,7 @@ export interface Land {
   is_for_sale: boolean;
   auction?: boolean;
   region?: string;
-  fixed_price?: number;
+  fixed_price: number;
   type: "building" | "mine";
   coordinates: string;
   latitude: number;
@@ -19,16 +20,16 @@ export interface Land {
 export interface LandWithDetails extends Land {
   properties: Land;
   owner_nickname?: string;
+  center_point: string;
   size: number;
   "fill-color": string;
 }
 
 interface LandStoreState {
-  selectedLand: MapboxGeoJSONFeature | null;
-  setSelectedLand: (land: MapboxGeoJSONFeature | null) => void;
+  selectedLandId: number | null;
+  setSelectedLandId: (landId: number | null) => void;
   lands: Land[];
   fetchLands: (bounds: mapboxgl.LngLatBounds, zoom: number) => Promise<Land[]>;
-  setSelectedLandFromServer: (id: number) => Promise<void>;
   currentLandDetails: LandWithDetails | null;
   fetchLandDetails: (id: number) => Promise<void>;
   currentFetchController: AbortController | null;
@@ -36,14 +37,14 @@ interface LandStoreState {
 
 const useLandStore = create<LandStoreState>((set, get) => ({
   lands: [],
-  selectedLand: null,
+  selectedLandId: null,
   currentLandDetails: null,
   currentFetchController: null,
 
-  setSelectedLand: (land) => {
-    set({ selectedLand: land });
-    if (land && land.properties && land.properties.id) {
-      get().fetchLandDetails(land.properties.id);
+  setSelectedLandId: (landId: number | null) => {
+    set({ selectedLandId: landId });
+    if (landId !== null) {
+      get().fetchLandDetails(landId);
     } else {
       set({ currentLandDetails: null });
     }
@@ -52,7 +53,6 @@ const useLandStore = create<LandStoreState>((set, get) => ({
   fetchLands: async (bounds, zoom) => {
     try {
       const lands = await fetchLandsFromServer(bounds, zoom);
-      console.log(lands);
       set({ lands });
       return lands;
     } catch (error) {
@@ -61,44 +61,30 @@ const useLandStore = create<LandStoreState>((set, get) => ({
     }
   },
 
-  setSelectedLandFromServer: async (id: number) => {
-    try {
-      const landDetails = await fetchLandDetails(id);
-      set((state) => {
-        if (!state.selectedLand) return state;
-        const updatedSelectedLand: MapboxGeoJSONFeature = {
-          ...state.selectedLand,
-          properties: {
-            ...state.selectedLand.properties,
-            ...landDetails,
-          },
-        };
-        return { selectedLand: updatedSelectedLand, currentLandDetails: landDetails };
-      });
-    } catch (error) {
-      if (axiosInstance.isCancel(error)) {
-        console.log('Request canceled:', (error as Error).message);
-      } else {
-        console.error("Error fetching land details:", error);
-      }
-    }
-  },
-
   fetchLandDetails: async (id: number) => {
     const currentController = get().currentFetchController;
     if (currentController) {
       currentController.abort();
     }
-
     const controller = new AbortController();
     set({ currentFetchController: controller });
 
     try {
       const landDetails = await fetchLandDetails(id, controller.signal);
       set({ currentLandDetails: landDetails });
+
+      const { mapbox } = useMapStore.getState();
+      if (mapbox) {
+        mapbox.setPaintProperty("citylands", "fill-color", [
+          "case",
+          ["==", ["get", "id"], id],
+          "#83a66c",
+          ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"],
+        ]);
+      }
     } catch (error) {
       if (axiosInstance.isCancel(error)) {
-        console.log('Request canceled:', (error as Error).message);
+        console.log("Request canceled:", (error as Error).message);
       } else {
         console.error("Error fetching land details:", error);
         set({ currentLandDetails: null });

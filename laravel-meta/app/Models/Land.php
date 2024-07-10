@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,9 +14,10 @@ class Land extends Model
     protected function type(): Attribute
     {
         return Attribute::make(
-            get: fn () => "building",
+            get: fn() => "building",
         );
     }
+
 
     protected function ownerNickname(): Attribute
     {

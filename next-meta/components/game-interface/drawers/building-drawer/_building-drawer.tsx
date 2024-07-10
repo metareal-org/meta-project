@@ -74,11 +74,11 @@ const PropertyDetails = ({ isLoading, size, price }: { isLoading: boolean; size?
 
 export default function BuildingDrawer() {
   const { buildingDrawer, setDrawerState } = useDrawerStore();
-  const { selectedLand, currentLandDetails } = useLandStore();
+  const { selectedLandId, currentLandDetails } = useLandStore();
 
   const isLoading = !currentLandDetails;
 
-  if (!buildingDrawer || !selectedLand) return null;
+  if (!buildingDrawer || selectedLandId === null) return null;
 
   return (
     <div className="fixed z-50 inset-x-0 scale-100 origin-bottom bottom-0 mx-auto w-full max-w-sm bg-black shadow-lg rounded-t-2xl">

@@ -1,12 +1,11 @@
 // app/main/_main.tsx
 "use client";
 import GameEngine from "@/components/game-engine";
-import GameInterface from "@/components/game-interface";
-import GemProgressBar from "@/components/game-interface/gemconter";
+import GameInterface from "@/components/game-interface/_game-interface";
 import GetLocation from "@/helpers/get-location";
 import { Fragment, useEffect, useState } from "react";
 import MissionsManager from "@/components/game-engine/missions";
-import SpinWheel from "@/components/minigames/spinwheel";
+import SpinWheel from "@/components/minigames/spinwheel/_spinwheel";
 import { Toaster } from "@/components/ui/toaster";
 import { Web3ModalProvider } from "@/components/game-engine/web3";
 export default function Main() {
@@ -25,7 +24,6 @@ export default function Main() {
         <SpinWheel />
         <GameEngine />
         <GetLocation />
-        <GemProgressBar />
         <Toaster />
       </Web3ModalProvider>
     </Fragment>

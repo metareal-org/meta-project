@@ -4,42 +4,46 @@ import useDialogStore from "@/store/gui-store/useDialogStore";
 import useLandStore from "@/store/world-store/useLandStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import axiosInstance from "@/lib/axios-instance";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle } from "lucide-react";
 import { submitOffer, updateOffer, deleteOffer } from "@/lib/api/offer";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
 
 export default function BuildingOfferDialog() {
   const { buildingOfferDialog, setDialogState } = useDialogStore();
-  const { selectedLand } = useLandStore();
+  const { currentLandDetails } = useLandStore();
   const [offerPrice, setOfferPrice] = useState("");
+  const { fetchUserBalance } = useUserStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [highestOffer, setHighestOffer] = useState<number | null>(null);
-  const [userOffer, setUserOffer] = useState<{ id: number; offer: number; date: number } | null>(null);
   const { toast } = useToast();
 
+  const { 
+    playerOffers, 
+    fetchPlayerOffers, 
+    updateOffer: updateStoreOffer, 
+    removeOffer: removeStoreOffer 
+  } = usePlayerOffersStore();
+
+  const userOffer = playerOffers.find(offer => offer.land_id === currentLandDetails?.id);
+
   useEffect(() => {
-    if (selectedLand && buildingOfferDialog) {
-      fetchOffers();
+    if (currentLandDetails && buildingOfferDialog) {
+      fetchPlayerOffers();
     }
-  }, [selectedLand, buildingOfferDialog]);
+  }, [currentLandDetails, buildingOfferDialog, fetchPlayerOffers]);
 
-  const fetchOffers = async () => {
-    if (!selectedLand) return;
-    try {
-      const response = await axiosInstance.get(`/offers/${selectedLand.properties?.id}`);
-      setHighestOffer(response.data.highestOffer);
-      setUserOffer(response.data.userOffer);
-      if (response.data.userOffer) {
-        setOfferPrice(response.data.userOffer.offer.toString());
-      }
-    } catch (error) {
-      console.error("Error fetching offers:", error);
+  useEffect(() => {
+    if (userOffer) {
+      setOfferPrice(userOffer.price.toString());
+    } else {
+      setOfferPrice("");
     }
-  };
+  }, [userOffer]);
 
-  const handleOfferConfirmClick = async () => {
-    if (!selectedLand) {
+  const handleSubmitOffer = async () => {
+    if (!currentLandDetails) {
       toast({
         variant: "destructive",
         title: "No land selected",
@@ -58,15 +62,17 @@ export default function BuildingOfferDialog() {
     setIsSubmitting(true);
     try {
       if (userOffer) {
-        await updateOffer(userOffer.id, Number(offerPrice));
+        const updatedOffer = await updateOffer(userOffer.id, Number(offerPrice));
+        updateStoreOffer(userOffer.id, updatedOffer);
       } else {
-        await submitOffer(selectedLand.properties?.id, Number(offerPrice));
+        const newOffer = await submitOffer(currentLandDetails.id, Number(offerPrice));
+        fetchPlayerOffers(); // Refetch all offers to include the new one
       }
       toast({
         title: userOffer ? "Bid updated" : "Bid placed",
         description: userOffer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
       });
-      fetchOffers();
+      fetchUserBalance(); // Fetch updated balance after offer submission/update
     } catch (error) {
       console.error("Error submitting/updating offer:", error);
       toast({
@@ -84,13 +90,13 @@ export default function BuildingOfferDialog() {
     setIsSubmitting(true);
     try {
       await deleteOffer(userOffer.id);
+      removeStoreOffer(userOffer.id);
       toast({
         title: "Bid withdrawn",
         description: "Your bid has been withdrawn successfully",
       });
-      setUserOffer(null);
       setOfferPrice("");
-      fetchOffers();
+      fetchUserBalance(); 
     } catch (error) {
       console.error("Error deleting offer:", error);
       toast({
@@ -119,11 +125,11 @@ export default function BuildingOfferDialog() {
           />
         </div>
 
-        {selectedLand && (
+        {currentLandDetails && (
           <div className="bg-gradient-to-r from-secondary/20 to-primary/20 py-4 rounded-lg space-y-1">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Land ID:</span>
-              <span className="font-semibold text-primary">{selectedLand.properties?.id}</span>
+              <span className="font-semibold text-primary">{currentLandDetails.id}</span>
             </div>
 
             {highestOffer && (
@@ -137,7 +143,7 @@ export default function BuildingOfferDialog() {
                   <>
                     <div className="flex border-t pt-2 justify-between items-center">
                       <span className="text-sm font-medium flex items-center gap-2">Your Current Bid:</span>
-                      <span className="font-semibold text-blue-500">${userOffer.offer.toLocaleString()}</span>
+                      <span className="font-semibold text-blue-500">${userOffer.price.toLocaleString()}</span>
                     </div>
                   </>
                 ) : (
@@ -187,8 +193,8 @@ export default function BuildingOfferDialog() {
           </Button>
         )}
         <Button
-          onClick={handleOfferConfirmClick}
-          disabled={isSubmitting || !selectedLand}
+          onClick={handleSubmitOffer}
+          disabled={isSubmitting || !currentLandDetails}
           className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-300"
         >
           {isSubmitting ? "Processing..." : userOffer ? "Update Bid" : "Place Bid"}

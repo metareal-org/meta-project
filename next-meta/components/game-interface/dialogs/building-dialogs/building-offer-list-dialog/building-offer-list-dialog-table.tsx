@@ -7,12 +7,15 @@ import moment from "moment";
 import { useState } from "react";
 import useLandStore from "@/store/world-store/useLandStore";
 import numeral from "numeral";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { acceptOffer } from "@/lib/api/offer";
 
 export type Offer = {
   id: string;
   offer: number;
   user: string;
   date: number;
+  is_accepted: number;
 };
 
 interface BuildingOfferListTableProps {
@@ -22,6 +25,9 @@ interface BuildingOfferListTableProps {
 }
 
 export default function BuildingOfferListTable({ data, sortable = true, isLoading }: BuildingOfferListTableProps) {
+  const { currentLandDetails, fetchLandDetails } = useLandStore();
+  const { fetchUserBalance } = useUserStore();
+  const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
 
   const columns: ColumnDef<Offer>[] = [
     {
@@ -70,7 +76,7 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
       },
       cell: ({ row }) => {
         const offer = parseFloat(row.getValue("offer"));
-        const formatted = numeral(offer).format('$0,0');
+        const formatted = numeral(offer).format("$0,0");
         return <div className="font-medium">{formatted}</div>;
       },
     },
@@ -78,14 +84,13 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
       accessorKey: "id",
       header: () => (sortable ? <div className="flex justify-center">Action</div> : null),
       cell: ({ row }) => {
+        const offerId = row.getValue("id") as string;
         return sortable ? (
-          <>
-            <Flex className="gap-2 items-center justify-center">
-              <Button size={"sm"} onClick={() => handleAcceptOffer(row.getValue("id"))}>
-                Accept
-              </Button>
-            </Flex>
-          </>
+          <Flex className="gap-2 items-center justify-center">
+            <Button size={"sm"} onClick={() => handleAcceptOffer(offerId)} disabled={processingOfferId === offerId}>
+              {processingOfferId === offerId ? "Processing..." : "Accept"}
+            </Button>
+          </Flex>
         ) : null;
       },
     },
@@ -99,8 +104,11 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
   ]);
   const [rowSelection, setRowSelection] = useState({});
 
+  // Filter out accepted offers
+  const filteredData = data.filter(offer => offer.is_accepted !== 1);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -113,7 +121,23 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
     },
   });
 
-  const handleAcceptOffer = (offer_id: string) => {};
+  const handleAcceptOffer = async (offerId: string) => {
+    setProcessingOfferId(offerId);
+    try {
+      await acceptOffer(Number(offerId));
+      console.log("Offer accepted successfully");
+      fetchUserBalance();
+      if (currentLandDetails) {
+        await fetchLandDetails(currentLandDetails.id);
+      }
+      // You might want to close the dialog or refresh the offer list here
+    } catch (error) {
+      console.error("Error accepting offer:", error);
+      console.log("Failed to accept offer. Please try again.");
+    } finally {
+      setProcessingOfferId(null);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -144,7 +168,7 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
                   </div>
                 </TableCell>
               </TableRow>
-            ) : data.length > 0 ? (
+            ) : filteredData.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
@@ -155,7 +179,7 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                  No pending offers.
                 </TableCell>
               </TableRow>
             )}

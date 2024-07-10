@@ -15,7 +15,6 @@ class Transaction extends Model
     {
         return $this->belongsTo(Land::class);
     }
-
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');

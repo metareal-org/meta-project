@@ -11,7 +11,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class UserController extends Controller
 {
-    // helpers
     private function authenticateWithToken($token, $address)
     {
         $tokenModel = PersonalAccessToken::findToken($token);
@@ -92,7 +91,6 @@ class UserController extends Controller
         }
     }
 
-    // functions
     public function authenticate(Request $request)
     {
         $token = $request->bearerToken();
@@ -114,6 +112,7 @@ class UserController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Successfully logged out']);
     }
+
     public function show(Request $request)
     {
         $user = $request->user();
@@ -124,17 +123,12 @@ class UserController extends Controller
 
     public function update(Request $request)
     {
-
         $user = $request->user();
         $validatedData = $request->validate([
             'current_mission' => 'sometimes|integer|min:0|max:100',
             'avatar_url' => 'sometimes|string|max:255',
             'coordinates' => 'sometimes|json',
             'nickname' => 'sometimes|string|min:3|max:80',
-            'cp_amount_free' => 'sometimes|integer|min:0',
-            'cp_amount_locked' => 'sometimes|integer|min:0',
-            'meta_amount_free' => 'sometimes|integer|min:0',
-            'meta_amount_locked' => 'sometimes|integer|min:0',
         ]);
 
         try {
@@ -148,4 +142,41 @@ class UserController extends Controller
             return response()->json(['error' => 'User update failed: ' . $e->getMessage()], 500);
         }
     }
+
+    public function updateCpAmount(Request $request)
+    {
+        $user = $request->user();
+        $action = $request->input('action');
+        $amount = $request->input('amount');
+
+        if (!in_array($action, ['add', 'remove', 'lock', 'unlock', 'setExact'])) {
+            return response()->json(['error' => 'Invalid action'], 400);
+        }
+
+        $result = $user->{"$action" . "Cp"}($amount);
+        if ($result) {
+            return response()->json(['message' => 'CP amount updated successfully', 'user' => $user]);
+        } else {
+            return response()->json(['error' => 'Failed to update CP amount'], 400);
+        }
+    }
+
+    public function updateMetaAmount(Request $request)
+    {
+        $user = $request->user();
+        $action = $request->input('action');
+        $amount = $request->input('amount');
+
+        if (!in_array($action, ['add', 'remove', 'lock', 'unlock', 'setExact'])) {
+            return response()->json(['error' => 'Invalid action'], 400);
+        }
+
+        $result = $user->{"$action" . "Meta"}($amount);
+        if ($result) {
+            return response()->json(['message' => 'Meta amount updated successfully', 'user' => $user]);
+        } else {
+            return response()->json(['error' => 'Failed to update Meta amount'], 400);
+        }
+    }
+
 }

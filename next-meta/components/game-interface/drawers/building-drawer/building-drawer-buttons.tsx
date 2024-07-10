@@ -4,8 +4,8 @@ import useLandStore, { Land } from "@/store/world-store/useLandStore";
 import useUnitStore from "@/store/world-store/useUnitStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { MouseEventHandler, ReactNode, useState, useMemo } from "react";
-import { center } from "@turf/turf";
 import { updateUserPosition } from "@/lib/api/user";
+
 interface BuildingButtonProps {
   icon: ReactNode;
   text: ReactNode;
@@ -33,7 +33,7 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
   const [isMoveButtonDisabled, setIsMoveButtonDisabled] = useState(false);
   const { setDialogState } = useDialogStore();
   const { moveMarker, marker } = useUnitStore();
-  const { selectedLand } = useLandStore();
+  const { currentLandDetails } = useLandStore();
   const { user } = useUserStore();
 
   const { isOwner, isForSale } = useMemo(() => {
@@ -51,21 +51,30 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/walk-finger-hand-gesture-10551875-8573171.png?f=webp" />,
       text: "Move",
       onClick: () => {
+        if (!currentLandDetails) return;
         setIsMoveButtonDisabled(true);
-        const centerPoint = selectedLand?.geometry && center(selectedLand.geometry).geometry.coordinates;
-        if (centerPoint) {
-          console.log("Center point:", centerPoint);
-          updateUserPosition(centerPoint as [number, number])
-            .then(() => {
-              const newCoordinates: [number, number] = centerPoint as [number, number];
-              moveMarker(marker as mapboxgl.Marker, newCoordinates);
-            })
-            .catch((e) => {
-              console.error(e);
-            })
-            .finally(() => {
-              setIsMoveButtonDisabled(false);
-            });
+        const centerPointString = currentLandDetails.center_point;
+
+        if (centerPointString) {
+          try {
+            const centerPoint = JSON.parse(centerPointString);
+            console.log("Center point:", centerPoint);
+            const newCoordinates: [number, number] = [centerPoint.longitude, centerPoint.latitude];
+            
+            updateUserPosition(newCoordinates)
+              .then(() => {
+                moveMarker(marker as mapboxgl.Marker, newCoordinates);
+              })
+              .catch((e) => {
+                console.error(e);
+              })
+              .finally(() => {
+                setIsMoveButtonDisabled(false);
+              });
+          } catch (error) {
+            console.error("Error parsing center point:", error);
+            setIsMoveButtonDisabled(false);
+          }
         } else {
           console.error("Center point is undefined");
           setIsMoveButtonDisabled(false);
@@ -74,7 +83,6 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
       condition: true,
       disabled: isMoveButtonDisabled,
     },
-
     {
       style: {
         background: "linear-gradient(180deg, #779EEC 0%, #3c71de 100%)",
@@ -82,7 +90,7 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/offer-folder-6842108-5604502.png?f=webp" />,
       text: "Offers",
       onClick: () => setDialogState("buildingOfferListDialog", true),
-      condition: true,
+      condition: isOwner,
     },
     {
       style: {

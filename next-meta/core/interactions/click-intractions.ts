@@ -9,10 +9,9 @@ export const setupClickInteractions = () => {
   const { mapbox } = useMapStore.getState();
   if (!mapbox) return;
 
-  // Use a single click event listener for all layers
   mapbox.on("click", (e) => {
     const features = mapbox.queryRenderedFeatures(e.point, {
-      layers: ["citylands"], // Add other layer IDs here if needed
+      layers: ["citylands"],
     });
 
     if (features.length > 0) {
@@ -25,19 +24,19 @@ export const setupClickInteractions = () => {
 };
 
 const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => {
-  const { setSelectedLand, selectedLand } = useLandStore.getState();
+  const { setSelectedLandId, selectedLandId } = useLandStore.getState();
   const { mapbox } = useMapStore.getState();
   const drawerLand: { [key: string]: string } = {
     citylands: "buildingDrawer",
-    // mines: "mineDrawer",
   };
 
-  if (selectedLand && selectedLand.properties?.id === feature.properties?.id) {
+  const clickedLandId = feature.properties?.id;
+
+  if (selectedLandId === clickedLandId) {
     deselectLand();
   } else {
     deselectLand();
-    setSelectedLand(feature);
-    updateFillColor(feature);
+    setSelectedLandId(clickedLandId);
     setDrawerState(drawerLand[feature.layer.id], true);
 
     const centerPoint = center({ type: "FeatureCollection", features: [feature] });
@@ -58,30 +57,12 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
 };
 
 const deselectLand = () => {
-  const { setSelectedLand, selectedLand } = useLandStore.getState();
-  if (selectedLand) {
-    resetFillColor(selectedLand);
+  const { setSelectedLandId, selectedLandId } = useLandStore.getState();
+  if (selectedLandId !== null) {
+    const { mapbox } = useMapStore.getState();
+    if (mapbox) {
+      mapbox.setPaintProperty("citylands", "fill-color", ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"]);
+    }
   }
-  setSelectedLand(null);
-};
-
-const updateFillColor = (feature: MapboxGeoJSONFeature) => {
-  const { mapbox } = useMapStore.getState();
-  if (mapbox) {
-    const layerId = feature.layer.id;
-    mapbox.setPaintProperty(layerId, "fill-color", [
-      "case",
-      ["==", ["get", "id"], feature.properties?.id],
-      "#83a66c",
-      ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"],
-    ]);
-  }
-};
-
-const resetFillColor = (feature: MapboxGeoJSONFeature) => {
-  const { mapbox } = useMapStore.getState();
-  if (mapbox) {
-    const layerId = feature.layer.id;
-    mapbox.setPaintProperty(layerId, "fill-color", ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"]);
-  }
+  setSelectedLandId(null);
 };

@@ -11,8 +11,6 @@ import loadMarkers from "@/core/loaders/markers-load/_index";
 import { AZADI_TOWER_COORDINATES, CAR_INITIAL_COORDINATE, CHESTMAN_LOCATION, UNIT_COORDINATES } from "@/core/constants";
 import useMissionStore from "@/store/useMissionStore";
 import * as THREE from "three";
-import MissionAdvanture from "@/core/missions/advanture/mission-advanture";
-import { MissionId } from "@/core/missions/mission-config";
 
 export default function Mapbox() {
   mapboxgl.accessToken = "pk.eyJ1Ijoic3ViZGFuaWFsIiwiYSI6ImNsNTU3cmcwdjE2cm0zZnFxdm1pemZ3cjQifQ.fLqs4EX703SYVVE0DzknNw";
@@ -77,9 +75,9 @@ export default function Mapbox() {
   }, [mapbox, threebox, setThreebox]);
   useEffect(() => {
     // if (mapbox && selectedMission.id >= MissionId.Advanture) {
-      loadFeatures();
-      loadMarkers();
-      setupClickInteractions();
+    loadFeatures();
+    loadMarkers();
+    setupClickInteractions();
     // }
   }, [mapbox, selectedMission]);
   return (

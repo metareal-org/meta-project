@@ -75,6 +75,7 @@ class LandController extends Controller
             'owner_nickname' => $land->owner_nickname, 
             'is_for_sale' => $land->is_for_sale,
             'fixed_price' => $land->fixed_price,
+            'center_point' => $land->center_point,
             'size' => $land->size,
             'region' => $land->region,
         ]);

@@ -39,9 +39,7 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set) => ({
   },
   updateOffer: (offerId, updatedOffer) => {
     set((state) => ({
-      playerOffers: state.playerOffers.map((offer) =>
-        offer.id === offerId ? updatedOffer : offer
-      ),
+      playerOffers: state.playerOffers.map((offer) => (offer.id === offerId ? updatedOffer : offer)),
     }));
   },
   removeOffer: (offerId) => {

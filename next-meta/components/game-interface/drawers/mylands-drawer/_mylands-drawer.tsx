@@ -1,14 +1,17 @@
 import React, { useState, useMemo, useEffect } from "react";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useMapStore from "@/store/engine-store/useMapStore";
+import useLandStore from "@/store/world-store/useLandStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { DollarSign, Maximize2, Search, XCircle } from "lucide-react";
+import { DollarSign, Maximize2, Search, XCircle, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Title } from "@/components/ui/tags";
+import { Button } from "@/components/ui/button";
 import { fetchUserLands } from "@/lib/api/land";
 import { useToast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Land {
   id: number;
@@ -18,23 +21,27 @@ interface Land {
   type: string;
   size: number;
   coordinates: string;
-  center_point: string; // JSON string containing longitude and latitude
+  center_point: string;
 }
 
 export default function MylandsDrawer() {
   const { mylandsDrawer, setDrawerState } = useDrawerStore();
   const { user } = useUserStore();
   const { mapbox } = useMapStore();
+  const { setSelectedLandId } = useLandStore();
   const { toast } = useToast();
   const [lands, setLands] = useState<Land[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [saleFilter, setSaleFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (mylandsDrawer) {
+      setIsLoading(true);
       fetchUserLands().then((fetchedLands) => {
         console.log(fetchedLands);
         setLands(fetchedLands);
+        setIsLoading(false);
       });
     }
   }, [mylandsDrawer]);
@@ -55,7 +62,7 @@ export default function MylandsDrawer() {
       });
   }, [lands, user?.id, searchTerm, saleFilter]);
 
-  const handleCardClick = (land: Land) => {
+  const handleFlyToLand = (land: Land) => {
     if (mapbox && land.center_point) {
       try {
         const centerPoint = JSON.parse(land.center_point);
@@ -64,6 +71,9 @@ export default function MylandsDrawer() {
           zoom: 19,
           duration: 2000,
         });
+        
+        setSelectedLandId(land.id);
+        setDrawerState("buildingDrawer", true);
       } catch (error) {
         console.error("Error parsing center point:", error);
         toast({
@@ -75,13 +85,36 @@ export default function MylandsDrawer() {
     }
   };
 
+  const LandSkeleton = () => (
+    <Card className="hover:bg-white/10">
+      <CardContent className="p-3">
+        <div className="flex items-center">
+          <Skeleton className="w-16 h-16 mr-3 rounded-md" />
+          <div className="flex-grow">
+            <div className="flex items-center justify-between mb-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex justify-end mt-2">
+              <Skeleton className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (!mylandsDrawer) return null;
 
   return (
     <div className="fixed bottom-20 z-10 bg-background min-h-[200px] right-20 my-auto w-full max-w-sm shadow-lg rounded-lg p-4 border border-border">
       <div className="relative h-[60vh] flex flex-col">
         <header className="flex pb-2 justify-between items-center">
-          <Title className="text-teal font-semibold">My Lands</Title>
+          <Title className="text-teal ">My Lands</Title>
           <XCircle size={18} className="cursor-pointer" onClick={handleClose} />
         </header>
 
@@ -103,43 +136,60 @@ export default function MylandsDrawer() {
         </div>
 
         <div className="flex-grow overflow-y-auto space-y-3 pr-2">
-          {filteredLands.map((land: Land) => (
-            <Card className="hover:bg-white/10 cursor-pointer" key={land.id} onClick={() => handleCardClick(land)}>
-              <CardContent className="p-3">
-                <div className="flex items-center">
-                  <div className="w-16 h-16 mr-3 relative">
-                    <img
-                      src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
-                      alt="Land"
-                      className="w-full h-full object-cover rounded-md shadow-sm"
-                    />
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-sm font-semibold text-primary flex items-center">
-                        {land.type.charAt(0).toUpperCase() + land.type.slice(1)} {land.id}
-                      </h3>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Maximize2 className="mr-1 h-3 w-3" />
-                        <span>
-                          {land.size} M<sup>2</sup>
-                        </span>
+          {isLoading ? (
+            <>
+              <LandSkeleton />
+              <LandSkeleton />
+              <LandSkeleton />
+            </>
+          ) : filteredLands.length === 0 ? (
+            <div className="text-sm absolute bottom-0">No lands found.</div>
+          ) : (
+            filteredLands.map((land: Land) => (
+              <Card key={land.id} className="hover:bg-white/10">
+                <CardContent className="p-3">
+                  <div className="flex items-center">
+                    <div className="w-16 h-16 mr-3 relative">
+                      <img
+                        src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
+                        alt="Land"
+                        className="w-full h-full object-cover rounded-md shadow-sm"
+                      />
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-primary flex items-center">
+                          {land.type.charAt(0).toUpperCase() + land.type.slice(1)} {land.id}
+                        </h3>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Maximize2 className="mr-1 h-3 w-3" />
+                          <span>
+                            {land.size} M<sup>2</sup>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className={land.is_for_sale ? "text-secondary" : "text-white"}>{land.is_for_sale ? "For Sale" : "Not for Sale"}</span>
+                        {land.is_for_sale ?  (
+                          <div className="flex items-center text-yellow-400">
+                            <DollarSign className="mr-1 h-3 w-3" />
+                            <span>{land.fixed_price} Meta</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
+                      <div className="flex justify-end mt-2">
+                        <Button size="sm" variant="outline" onClick={() => handleFlyToLand(land)} className="p-1">
+                          <MapPin size={14} />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={land.is_for_sale ? "text-green-400" : "text-destructive"}>{land.is_for_sale ? "For Sale" : "Not for Sale"}</span>
-                      {land.is_for_sale && (
-                        <div className="flex items-center text-yellow-400">
-                          <DollarSign className="mr-1 h-3 w-3" />
-                          <span>{land.fixed_price} Meta</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -25,3 +25,8 @@ export const fetchUserOffers = async () => {
   const response = await axiosInstance.post(`${SERVER}/offers/user`);
   return response.data;
 };
+
+export const acceptOffer = async (offerId: number) => {
+  const response = await axiosInstance.post(`/offers/accept/${offerId}`);
+  return response.data;
+};

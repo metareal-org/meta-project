@@ -5,18 +5,41 @@ import BuildingOfferListTable from "./building-offer-list-dialog/building-offer-
 import useLandStore from "@/store/world-store/useLandStore";
 import { useEffect, useState } from "react";
 import { fetchOffers } from "@/lib/api/offer";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { acceptOffer } from "@/lib/api/offer";
+
 export default function BuildingOfferListDialog() {
   const { buildingOfferListDialog, setDialogState } = useDialogStore();
-  const { selectedLand } = useLandStore();
+  const { currentLandDetails } = useLandStore();
   const [offers, setOffers] = useState([]);
   const [highestOffer, setHighestOffer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useUserStore();
 
-  useEffect(() => {
-    if (selectedLand && buildingOfferListDialog) {
+  const fetchOffersData = async () => {
+    if (currentLandDetails && buildingOfferListDialog) {
       setIsLoading(true);
       setOffers([]);
-      fetchOffers(selectedLand.properties?.id)
+      try {
+        const data = await fetchOffers(currentLandDetails.id);
+        setOffers(data.offers);
+        setHighestOffer(data.highestOffer);
+      } catch (error) {
+        console.error("Error fetching offers:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+  useEffect(() => {
+    fetchOffersData();
+  }, [currentLandDetails, buildingOfferListDialog]);
+
+  useEffect(() => {
+    if (currentLandDetails && buildingOfferListDialog) {
+      setIsLoading(true);
+      setOffers([]);
+      fetchOffers(currentLandDetails.id)
         .then((data) => {
           setOffers(data.offers);
           setHighestOffer(data.highestOffer);
@@ -28,12 +51,12 @@ export default function BuildingOfferListDialog() {
           setIsLoading(false);
         });
     }
-  }, [selectedLand, buildingOfferListDialog]);
+  }, [currentLandDetails, buildingOfferListDialog]);
   return (
     <CustomDialog
       open={buildingOfferListDialog}
       onOpenChange={() => setDialogState("buildingOfferListDialog", false)}
-      title={`Building Offers for Plot #${selectedLand?.properties?.id}`}
+      title={`Building Offers for Plot #${currentLandDetails?.id}`}
       description="View the list of building offers for this land plot below."
     >
       <div className="grid gap-4 py-2">
@@ -47,7 +70,7 @@ export default function BuildingOfferListDialog() {
         {highestOffer !== null && <div className="text-primary">Highest Offer: ${highestOffer}</div>}
 
         <div>
-          <BuildingOfferListTable isLoading={isLoading} data={offers} />
+          <BuildingOfferListTable isLoading={isLoading} data={offers} sortable={user?.id === currentLandDetails?.owner_id} />
         </div>
       </div>
       <div className="flex justify-end">

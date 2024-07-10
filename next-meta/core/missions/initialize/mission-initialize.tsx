@@ -66,13 +66,13 @@ export default function MissionInitialize() {
   useEffect(() => {
     console.log("here");
     if (isAuthValid) {
-      axiosInstance.post("user/show/").then((response) => {
+      axiosInstance.get("user/show/").then((response) => {
         const user = response.data.user;
         console.log(user);
         useUserStore.getState().setUser(user);
         useUserStore.getState().setNickname(user.nickname || "");
-        useUserStore.getState().setCpAmount(user.cp_amount || 0);
-        useUserStore.getState().setMetaAmount(user.meta_amount || 0);
+        useUserStore.getState().setCpExact(user.cp_amount_free || 0);
+        useUserStore.getState().setMetaExact(user.meta_amount_free || 0);
         useAvatarStore.getState().setAvatarUrl(user.avatar_url || "");
         useUnitStore.getState().setUnitCoordinates(JSON.parse(user.coordinates) || DEFAULT_UNIT_COORDINATE);
         useMissionStore.getState().setSelectedMission(Number(user.current_mission) || MissionId.SetNickname);

@@ -14,7 +14,7 @@ export default function MylandsWidget() {
   return (
     <>
       <div className="fixed z-10 bottom-20 right-5">
-        <Button variant="theme" onClick={handleClick} className="inventory !size-12 text-xl !p-0">
+        <Button variant="theme" onClick={handleClick} className="!size-12 text-xl !p-0">
           <HomeIcon size={20} />
         </Button>
       </div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { cache } from "react";
 import { Card, Title } from "@/components/ui/tags";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import { XCircle } from "lucide-react";
@@ -8,14 +8,14 @@ import { useInventoryStore } from "@/store/player-store/useInventoryStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { MissionId } from "@/core/missions/mission-config";
 import useMissionStore from "@/store/useMissionStore";
-import { updateUserBalance } from "@/lib/api/user";
+import { updateCpAmount, updateMetaAmount } from "@/lib/api/user";
 
 export default function InventoryDrawer() {
   const { inventoryDrawer, setDrawerState } = useDrawerStore();
   const { setShowSpinModal } = useSpinwheelStore();
   const { openAlert } = useAlertStore();
   const { items } = useInventoryStore();
-  const { setCpAmount } = useUserStore();
+  const { setCpExact, setMetaExact } = useUserStore();
   const { setSelectedMission } = useMissionStore();
   const { updateItemCount } = useInventoryStore();
   if (!inventoryDrawer) return null;
@@ -39,15 +39,20 @@ export default function InventoryDrawer() {
       ],
     });
   };
-  const handleItemClick = (name: string, count: number) => {
+  const handleItemClick = async (name: string, count: number) => {
     if (count === 0) return;
     if (name === "Ticket") {
       setDrawerState("inventoryDrawer", false);
       showReadyToPlayAlert();
     }
     if (name === "Gift") {
-      updateUserBalance(5000, 1000000).then(() => {
-        setCpAmount(5000);
+      try {
+        await updateCpAmount("add", 5000);
+        await updateMetaAmount("add", 1000000);
+      } catch {
+      } finally {
+        setCpExact(5000);
+        setMetaExact(1000000);
         openAlert({
           title: "Gift opened",
           picture: "/assets/images/inventory/openedbox.jpg",
@@ -76,7 +81,7 @@ export default function InventoryDrawer() {
             },
           ],
         });
-      });
+      }
     }
   };
   return (

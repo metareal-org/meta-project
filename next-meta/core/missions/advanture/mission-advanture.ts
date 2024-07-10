@@ -5,11 +5,14 @@ import { MissionId } from "../mission-config";
 import loadUnit from "@/core/loaders/markers-load/unit-load";
 import useUnitStore from "@/store/world-store/useUnitStore";
 import { updateUserMission } from "@/lib/api/user";
+import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
+import { useUserStore } from "@/store/player-store/useUserStore";
 
 export default function MissionAdvanture() {
   const { mapbox } = useMapStore();
   const { selectedMission } = useMissionStore();
-
+  const { playerOffers } = usePlayerOffersStore();
+  const { fetchUserBalance } = useUserStore();
   useEffect(() => {
     if (selectedMission?.id !== MissionId.Advanture || !mapbox) return;
     updateUserMission(MissionId.Advanture)
@@ -24,14 +27,10 @@ export default function MissionAdvanture() {
       })
       .catch(console.error);
   }, [selectedMission, mapbox]);
-  return null;
 
+  useEffect(() => {
+    fetchUserBalance();
+  }, [playerOffers]);
+
+  return null;
 }
-// ****************> we are here now
-// useEffect(() => { 
-//   if (mapbox && selectedMission.id >= MissionId.Advanture) {
-//     loadFeatures();
-//     loadMarkers();
-//     setupClickInteractions();
-//   }
-// }, [mapbox, selectedMission]);

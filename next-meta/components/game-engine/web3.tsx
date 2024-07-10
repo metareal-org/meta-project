@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
 
 const queryClient = new QueryClient();
-const projectId = "6a1fbd37940215489abd38edd45e9f0a";
+const projectId = "79ad375d4e1cf0fa0b7ffe63a32a0796";
 const metadata = {
   name: "Web3Modal",
   description: "Web3Modal Example",

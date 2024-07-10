@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { CustomDialog } from "@/components/game-interface/dialogs/_dialogs";
 import useDialogStore from "@/store/gui-store/useDialogStore";
 import useLandStore from "@/store/world-store/useLandStore";
+import useTransactionStore from "@/store/player-store/useTransactionStore";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function BuildingBuyDialog() {
   const { buildingBuyDialog, setDialogState } = useDialogStore();
   const { currentLandDetails, fetchLandDetails } = useLandStore();
+  const { buyLand, buyingLand } = useTransactionStore();
+  const { cpAmount } = useUserStore();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (buildingBuyDialog && currentLandDetails?.id) {
@@ -15,6 +21,27 @@ export default function BuildingBuyDialog() {
   }, [buildingBuyDialog, currentLandDetails?.id, fetchLandDetails]);
 
   if (!buildingBuyDialog || !currentLandDetails) return null;
+
+  const handleBuy = async () => {
+    if (currentLandDetails.id) {
+      try {
+        await buyLand(currentLandDetails.id);
+        toast({
+          title: "Purchase Successful",
+          description: `You have successfully purchased Land ${currentLandDetails.id}`,
+        });
+        setDialogState("buildingBuyDialog", false);
+      } catch (error) {
+        toast({
+          title: "Purchase Failed",
+          description: "There was an error while trying to purchase the land. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const canBuy = currentLandDetails.is_for_sale && cpAmount.free >= (currentLandDetails.fixed_price || 0);
 
   return (
     <CustomDialog
@@ -52,8 +79,12 @@ export default function BuildingBuyDialog() {
         <Button className="w-full" variant="outline" onClick={() => setDialogState("buildingBuyDialog", false)}>
           Cancel
         </Button>
-        <Button className="w-full" onClick={() => setDialogState("buildingBuyDialog", false)} disabled={!currentLandDetails.is_for_sale}>
-          {currentLandDetails.is_for_sale ? "Buy" : "Not for Sale"}
+        <Button 
+          className="w-full" 
+          onClick={handleBuy} 
+          disabled={!canBuy || buyingLand}
+        >
+          {buyingLand ? "Buying..." : canBuy ? "Buy" : "Not Available"}
         </Button>
       </div>
     </CustomDialog>

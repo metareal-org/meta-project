@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
-
 
     public function ownedLands(): HasMany
     {
@@ -27,7 +27,13 @@ class User extends Authenticatable
     {
         return $this->hasMany(Offer::class);
     }
-
+    public function makeOffer(Land $land, int $price): ?Offer
+    {
+        return $this->offers()->create([
+            'land_id' => $land->id,
+            'price' => $price,
+        ]);
+    }
     public function getCpAmountTotalAttribute(): int
     {
         return $this->cp_amount_free + $this->cp_amount_locked;
@@ -36,5 +42,131 @@ class User extends Authenticatable
     public function getMetaAmountTotalAttribute(): int
     {
         return $this->meta_amount_free + $this->meta_amount_locked;
+    }
+
+    // CP Management Methods
+    public function addCp(int $amount): bool
+    {
+        return $this->updateCpAmount($this->cp_amount_free + $amount, $this->cp_amount_locked);
+    }
+
+    public function removeCp(int $amount): bool
+    {
+        $newAmount = max(0, $this->cp_amount_free - $amount);
+        return $this->updateCpAmount($newAmount, $this->cp_amount_locked);
+    }
+    public function lockCp(int $amount): bool
+    {
+        if ($this->cp_amount_free < $amount) {
+            return false;
+        }
+
+        return $this->updateCpAmount(
+            $this->cp_amount_free - $amount,
+            $this->cp_amount_locked + $amount
+        );
+    }
+
+    public function unlockCp(int $amount): bool
+    {
+        if ($this->cp_amount_locked < $amount) {
+            return false;
+        }
+
+        return $this->updateCpAmount(
+            $this->cp_amount_free + $amount,
+            $this->cp_amount_locked - $amount
+        );
+    }
+    public function setExactCp(int $amount): bool
+    {
+        return $this->updateCpAmount($amount, $this->cp_amount_locked);
+    }
+
+    public function addMeta(int $amount): bool
+    {
+        return $this->updateMetaAmount($this->meta_amount_free + $amount, $this->meta_amount_locked);
+    }
+
+    public function removeMeta(int $amount): bool
+    {
+        $newAmount = max(0, $this->meta_amount_free - $amount);
+        return $this->updateMetaAmount($newAmount, $this->meta_amount_locked);
+    }
+
+    public function lockMeta(int $amount): bool
+    {
+        $lockableAmount = min($amount, $this->meta_amount_free);
+        return $this->updateMetaAmount(
+            $this->meta_amount_free - $lockableAmount,
+            $this->meta_amount_locked + $lockableAmount
+        );
+    }
+
+    public function unlockMeta(int $amount): bool
+    {
+        $unlockableAmount = min($amount, $this->meta_amount_locked);
+        return $this->updateMetaAmount(
+            $this->meta_amount_free + $unlockableAmount,
+            $this->meta_amount_locked - $unlockableAmount
+        );
+    }
+
+    public function setExactMeta(int $amount): bool
+    {
+        return $this->updateMetaAmount($amount, $this->meta_amount_locked);
+    }
+
+    private function updateCpAmount(int $free, int $locked): bool
+    {
+        return $this->update([
+            'cp_amount_free' => $free,
+            'cp_amount_locked' => $locked,
+        ]);
+    }
+
+    private function updateMetaAmount(int $free, int $locked): bool
+    {
+        return $this->update([
+            'meta_amount_free' => $free,
+            'meta_amount_locked' => $locked,
+        ]);
+    }
+
+    // Transaction methods
+    public function transferCp(User $recipient, int $amount): bool
+    {
+        if ($this->cp_amount_free < $amount) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($recipient, $amount) {
+            $this->removeCp($amount);
+            $recipient->addCp($amount);
+            return true;
+        });
+    }
+
+    public function transferMeta(User $recipient, int $amount): bool
+    {
+        if ($this->meta_amount_free < $amount) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($recipient, $amount) {
+            $this->removeMeta($amount);
+            $recipient->addMeta($amount);
+            return true;
+        });
+    }
+
+    public function hasSufficientCp(int $amount): bool
+    {
+        return $this->cp_amount_free >= $amount;
+    }
+
+    public function hasSufficientMeta(int $amount): bool
+    {
+        return $this->meta_amount_free >= $amount;
     }
 }

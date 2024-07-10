@@ -1,7 +1,6 @@
 import useMapStore from "@/store/engine-store/useMapStore";
 import useLandStore, { LandWithDetails } from "@/store/world-store/useLandStore";
 import { Map, LngLatBounds } from "mapbox-gl";
-import { debounce } from "lodash";
 import * as turf from "@turf/turf";
 import { Feature, Geometry } from "geojson";
 
@@ -13,6 +12,7 @@ export const GeoJsonLoader = (sourceId: string, layerId: string, getColor: (owne
   const { mapbox } = useMapStore.getState();
   const { fetchLands } = useLandStore.getState();
   let lastRequest: string | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
 
   const expandBounds = (bounds: LngLatBounds, factor: number = 1.5): LngLatBounds => {
     const bbox: BBox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
@@ -93,8 +93,23 @@ export const GeoJsonLoader = (sourceId: string, layerId: string, getColor: (owne
           });
         }
 
-        const debouncedLoadLandsData = debounce(() => loadLandsData(mapbox), 300);
-        mapbox.on("moveend", debouncedLoadLandsData);
+        const scheduleLoadLandsData = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          timeoutId = setTimeout(() => {
+            loadLandsData(mapbox);
+            timeoutId = null;
+          }, 500);
+        };
+
+        mapbox.on("movestart", () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+        });
+
+        mapbox.on("moveend", scheduleLoadLandsData);
       } catch (error) {
         console.error("Error in mapbox load event handler:", error);
       }
