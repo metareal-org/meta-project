@@ -1,4 +1,3 @@
-// components/game-interface/alerts/_alert.tsx
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Flex } from "@/components/ui/tags";
@@ -10,8 +9,24 @@ export default function Alert() {
   return (
     <>
       {alertConfigs.map((alertConfig) => (
-        <Dialog key={alertConfig.id} open={true} onOpenChange={() => closeAlert(alertConfig.id!)}>
-          <DialogContent>
+        <Dialog
+          key={alertConfig.id}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open && alertConfig.closable) {
+              closeAlert(alertConfig.id!);
+            }
+          }}
+        >
+          <DialogContent
+            className="sm:max-w-[425px]"
+            onInteractOutside={(e) => {
+              if (!alertConfig.closable) {
+                e.preventDefault();
+              }
+            }}
+            hideCloseButton={!alertConfig.closable}
+          >
             <DialogHeader>{alertConfig.title && <DialogTitle className="text-primary">{alertConfig.title}</DialogTitle>}</DialogHeader>
             <div>
               <Flex className="flex-col w-full gap-3">

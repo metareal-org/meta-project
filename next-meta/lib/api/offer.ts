@@ -21,7 +21,7 @@ export const deleteOffer = async (offerId: number) => {
   return response.data;
 };
 
-export const fetchUserOffers = async () => {
+export const fetchuser_offers = async () => {
   const response = await axiosInstance.post(`${SERVER}/offers/user`);
   return response.data;
 };

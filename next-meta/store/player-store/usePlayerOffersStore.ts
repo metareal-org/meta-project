@@ -1,7 +1,7 @@
 // store/player-store/usePlayerOffersStore.ts
 
 import { create } from "zustand";
-import { fetchUserOffers } from "@/lib/api/offer";
+import { fetchuser_offers } from "@/lib/api/offer";
 
 interface Offer {
   id: number;
@@ -30,7 +30,7 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set) => ({
   fetchPlayerOffers: async () => {
     set({ isLoading: true, error: null });
     try {
-      const data = await fetchUserOffers();
+      const data = await fetchuser_offers();
       set({ playerOffers: data, isLoading: false });
     } catch (error) {
       console.error("Error fetching offers:", error);

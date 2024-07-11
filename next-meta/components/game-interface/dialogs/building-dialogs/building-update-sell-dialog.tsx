@@ -53,6 +53,7 @@ export default function BuildingUpdateSellDialog() {
       await fetchLands(bounds, zoom);
       await fetchLandDetails(currentLandDetails.id);
       toast({
+        variant:"success",
         title: "Price updated",
         description: "The land price has been updated successfully",
       });
@@ -81,6 +82,7 @@ export default function BuildingUpdateSellDialog() {
       await fetchLandDetails(currentLandDetails.id);
       await fetchLands(bounds, zoom);
       toast({
+        variant:"success",
         title: "Sale stopped",
         description: "The land has been removed from sale",
       });

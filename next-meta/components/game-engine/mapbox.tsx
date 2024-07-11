@@ -1,24 +1,43 @@
 ﻿"use client";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { setupClickInteractions } from "@/core/interactions/click-intractions";
 import useThreeboxStore, { ThreeboxStore } from "@/store/engine-store/useThreeboxStore";
 import { Threebox } from "threebox-plugin";
-import { loadFeatures } from "@/core/loaders/features-load/_index";
 import loadMarkers from "@/core/loaders/markers-load/_index";
-import { AZADI_TOWER_COORDINATES, CAR_INITIAL_COORDINATE, CHESTMAN_LOCATION, UNIT_COORDINATES } from "@/core/constants";
+import { AZADI_TOWER_COORDINATES, UNIT_COORDINATES } from "@/core/constants";
 import useMissionStore from "@/store/useMissionStore";
 import * as THREE from "three";
+import { GeoJsonLoader } from "@/core/loaders/utils/geojson-loader";
+import { useUserStore } from "@/store/player-store/useUserStore";
 
 export default function Mapbox() {
-  mapboxgl.accessToken = "pk.eyJ1Ijoic3ViZGFuaWFsIiwiYSI6ImNsNTU3cmcwdjE2cm0zZnFxdm1pemZ3cjQifQ.fLqs4EX703SYVVE0DzknNw";
+  const [isClient, setIsClient] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const minimapContainer = useRef<HTMLDivElement>(null);
   const { mapbox, minimap, initializeMapbox, initializeMinimap } = useMapStore();
   const { threebox, setThreebox } = useThreeboxStore() as ThreeboxStore;
   const { selectedMission } = useMissionStore();
+  const { user } = useUserStore();
+  mapboxgl.accessToken = "pk.eyJ1Ijoic3ViZGFuaWFsIiwiYSI6ImNsNTU3cmcwdjE2cm0zZnFxdm1pemZ3cjQifQ.fLqs4EX703SYVVE0DzknNw";
+  useEffect(() => {
+    if (isClient) return;
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+    mapboxgl.setRTLTextPlugin(
+      "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js",
+      (e) => {
+        console.log(e);
+      },
+      true
+    );
+  }, [isClient]);
+
   useEffect(() => {
     if (!mapbox && mapContainer.current) {
       initializeMapbox({
@@ -46,18 +65,19 @@ export default function Mapbox() {
         multiLayer: true,
       });
 
-      // Increase ambient light intensity
-      const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Increased from 0.8 to 1.2
-      tb.add(ambientLight);
+      const setupLighting = () => {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        tb.add(ambientLight);
 
-      // Increase directional light intensity and adjust angle
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // Increased from 0.5 to 0.8
-      directionalLight.position.set(1, 1, 1); // Light from top-right
-      tb.add(directionalLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        tb.add(directionalLight);
 
-      // Add a hemisphere light for more natural lighting
-      const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
-      tb.add(hemisphereLight);
+        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+        tb.add(hemisphereLight);
+      };
+
+      setupLighting();
 
       window.tb = tb;
       mapbox.on("style.load", () => {
@@ -73,13 +93,14 @@ export default function Mapbox() {
       setThreebox(tb);
     }
   }, [mapbox, threebox, setThreebox]);
+
   useEffect(() => {
-    // if (mapbox && selectedMission.id >= MissionId.Advanture) {
-    loadFeatures();
-    loadMarkers();
     setupClickInteractions();
-    // }
+    if (!mapbox) return;
+    GeoJsonLoader("citylands", "citylands");
+    loadMarkers();
   }, [mapbox, selectedMission]);
+
   return (
     <div className="relative w-full h-screen">
       {selectedMission.components.mapbox && (
@@ -88,7 +109,7 @@ export default function Mapbox() {
         </div>
       )}
       <div className={!selectedMission.components.minimap ? "opacity-0" : ""}>
-        <div className={`absolute bottom-5 right-5 w-40 h-40 border border-gray-300 rounded-md overflow-hidden z-10 `}>
+        <div className="absolute bottom-5 right-5 w-40 h-40 border border-gray-300 rounded-md overflow-hidden z-10">
           <div ref={minimapContainer} className="w-full h-full"></div>
         </div>
       </div>

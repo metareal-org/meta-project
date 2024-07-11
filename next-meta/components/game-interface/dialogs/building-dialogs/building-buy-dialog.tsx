@@ -27,15 +27,16 @@ export default function BuildingBuyDialog() {
       try {
         await buyLand(currentLandDetails.id);
         toast({
+          variant:"success",
           title: "Purchase Successful",
           description: `You have successfully purchased Land ${currentLandDetails.id}`,
         });
         setDialogState("buildingBuyDialog", false);
       } catch (error) {
         toast({
+          variant: "destructive",
           title: "Purchase Failed",
           description: "There was an error while trying to purchase the land. Please try again.",
-          variant: "destructive",
         });
       }
     }

@@ -45,6 +45,7 @@ export default function BuildingSellDialog() {
       await fetchLands(bounds, zoom);
       await fetchLandDetails(currentLandDetails.id);
       toast({
+        variant:"success",
         title: "Price set",
         description: "The land is now for sale at the set price",
       });

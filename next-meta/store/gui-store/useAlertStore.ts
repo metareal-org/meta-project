@@ -13,6 +13,7 @@ export interface AlertConfig {
     onClick?: () => void;
     variant?: "default" | "outline" | "link" | "theme" | "destructive" | "secondary" | "ghost" | null | undefined;
   }[];
+  closable?: boolean; 
 }
 
 export interface AlertStore {

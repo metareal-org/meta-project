@@ -74,6 +74,7 @@ export default function MyOffersDrawer() {
       await deleteOffer(offerId);
       removeOffer(offerId);
       toast({
+        variant:"success",
         title: "Offer removed",
         description: "Your offer has been successfully removed.",
       });

@@ -16,7 +16,6 @@ export default function BuildingOfferDialog() {
   const [offerPrice, setOfferPrice] = useState("");
   const { fetchUserBalance } = useUserStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [highestOffer, setHighestOffer] = useState<number | null>(null);
   const { toast } = useToast();
 
   const { 
@@ -26,7 +25,7 @@ export default function BuildingOfferDialog() {
     removeOffer: removeStoreOffer 
   } = usePlayerOffersStore();
 
-  const userOffer = playerOffers.find(offer => offer.land_id === currentLandDetails?.id);
+  const user_offer = playerOffers.find(offer => offer.land_id === currentLandDetails?.id);
 
   useEffect(() => {
     if (currentLandDetails && buildingOfferDialog) {
@@ -35,12 +34,12 @@ export default function BuildingOfferDialog() {
   }, [currentLandDetails, buildingOfferDialog, fetchPlayerOffers]);
 
   useEffect(() => {
-    if (userOffer) {
-      setOfferPrice(userOffer.price.toString());
+    if (user_offer) {
+      setOfferPrice(user_offer.price.toString());
     } else {
       setOfferPrice("");
     }
-  }, [userOffer]);
+  }, [user_offer]);
 
   const handleSubmitOffer = async () => {
     if (!currentLandDetails) {
@@ -61,16 +60,17 @@ export default function BuildingOfferDialog() {
     }
     setIsSubmitting(true);
     try {
-      if (userOffer) {
-        const updatedOffer = await updateOffer(userOffer.id, Number(offerPrice));
-        updateStoreOffer(userOffer.id, updatedOffer);
+      if (user_offer) {
+        const updatedOffer = await updateOffer(user_offer.id, Number(offerPrice));
+        updateStoreOffer(user_offer.id, updatedOffer);
       } else {
         const newOffer = await submitOffer(currentLandDetails.id, Number(offerPrice));
         fetchPlayerOffers(); // Refetch all offers to include the new one
       }
       toast({
-        title: userOffer ? "Bid updated" : "Bid placed",
-        description: userOffer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
+        variant:"success",
+        title: user_offer ? "Bid updated" : "Bid placed",
+        description: user_offer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
       });
       fetchUserBalance(); // Fetch updated balance after offer submission/update
     } catch (error) {
@@ -86,14 +86,15 @@ export default function BuildingOfferDialog() {
   };
 
   const handleDeleteOffer = async () => {
-    if (!userOffer) return;
+    if (!user_offer) return;
     setIsSubmitting(true);
     try {
-      await deleteOffer(userOffer.id);
-      removeStoreOffer(userOffer.id);
+      await deleteOffer(user_offer.id);
+      removeStoreOffer(user_offer.id);
       toast({
-        title: "Bid withdrawn",
-        description: "Your bid has been withdrawn successfully",
+        variant:"success",
+        title: "Bid canceled",
+        description: "Your bid has been canceled successfully",
       });
       setOfferPrice("");
       fetchUserBalance(); 
@@ -116,7 +117,7 @@ export default function BuildingOfferDialog() {
       title="Submit Your Offer"
       description="Make a competitive bid for this prime property."
     >
-      <div className="space-y-6">
+      <div>
         <div className="rounded-lg overflow-hidden shadow-lg">
           <img
             className="w-full h-48 object-cover"
@@ -126,37 +127,27 @@ export default function BuildingOfferDialog() {
         </div>
 
         {currentLandDetails && (
-          <div className="bg-gradient-to-r from-secondary/20 to-primary/20 py-4 rounded-lg space-y-1">
-            <div className="flex justify-between items-center">
+          <div className="bg-gradient-to-r from-secondary/20 to-primary/20  rounded-lg my-2">
+            <div className="flex justify-between mb-1 items-center">
               <span className="text-sm font-medium">Land ID:</span>
               <span className="font-semibold text-primary">{currentLandDetails.id}</span>
             </div>
 
-            {highestOffer && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium flex items-center gap-2">Highest Bid:</span>
-                  <span className="font-semibold text-green-500">${highestOffer.toLocaleString()}</span>
+            <div className="space-y-2">
+              {user_offer ? (
+                <div className="flex border-t pt-2 justify-between items-center">
+                  <span className="text-sm font-medium flex items-center gap-2">Your Current Bid:</span>
+                  <span className="font-semibold text-blue-500">${user_offer.price.toLocaleString()}</span>
                 </div>
-
-                {userOffer ? (
-                  <>
-                    <div className="flex border-t pt-2 justify-between items-center">
-                      <span className="text-sm font-medium flex items-center gap-2">Your Current Bid:</span>
-                      <span className="font-semibold text-blue-500">${userOffer.price.toLocaleString()}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex border items-center justify-center gap-2  p-2 rounded-md">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm">You haven't placed a bid yet</span>
-                  </div>
-                )}
-              </div>
-            )}
+              ) : (
+                <div className="flex border items-center justify-center gap-2 p-2 rounded-md">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">You haven't placed a bid yet</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
-
         <div>
           <label htmlFor="offerPrice" className="block text-sm font-medium mb-2">
             Your Offer Amount
@@ -187,7 +178,7 @@ export default function BuildingOfferDialog() {
         <Button variant="outline" onClick={() => setDialogState("buildingOfferDialog", false)}>
           Cancel
         </Button>
-        {userOffer && (
+        {user_offer && (
           <Button variant="destructive" onClick={handleDeleteOffer} disabled={isSubmitting}>
             Remove
           </Button>
@@ -197,7 +188,7 @@ export default function BuildingOfferDialog() {
           disabled={isSubmitting || !currentLandDetails}
           className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-300"
         >
-          {isSubmitting ? "Processing..." : userOffer ? "Update Bid" : "Place Bid"}
+          {isSubmitting ? "Processing..." : user_offer ? "Update Bid" : "Place Bid"}
         </Button>
       </div>
     </CustomDialog>

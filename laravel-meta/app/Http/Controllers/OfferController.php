@@ -23,8 +23,8 @@ class OfferController extends Controller
             ->select('id', 'user_id', 'price', 'created_at')
             ->orderBy('price', 'desc')
             ->get();
-        $highestOffer = $offers->first();
-        $userOffer = $offers->firstWhere('user_id', $user->id);
+        $highest_offer = $offers->first();
+        $user_offer = $offers->firstWhere('user_id', $user->id);
 
         $formattedOffers = $offers->map(function ($offer) {
             return [
@@ -37,13 +37,13 @@ class OfferController extends Controller
 
         return response()->json([
             'offers' => $formattedOffers,
-            'highestOffer' => $highestOffer ? $highestOffer->price : null,
-            'userOffer' => $userOffer ? [
-                'id' => $userOffer->id,
-                'offer' => $userOffer->price,
-                'date' => $userOffer->created_at->timestamp * 1000,
+            'highest_offer' => $highest_offer ? $highest_offer->price : null,
+            'user_offer' => $user_offer ? [
+                'id' => $user_offer->id,
+                'offer' => $user_offer->price,
+                'date' => $user_offer->created_at->timestamp * 1000,
             ] : null,
-            'landOwner' => $land->owner_id,
+            'land_owner' => $land->owner_id,
         ]);
     }
 
@@ -164,7 +164,6 @@ class OfferController extends Controller
         $offers = Offer::where('user_id', $user->id)
             ->with('land:id,region,center_point')
             ->get();
-
         return response()->json($offers);
     }
 

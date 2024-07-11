@@ -1,8 +1,26 @@
 import { fetchUser } from "@/lib/api/user";
 import { create } from "zustand";
 
+
+export interface User {
+  id: number;
+  address: string;
+  avatar_url: string;
+  coordinates: string;
+  cp_amount_free: number;
+  cp_amount_locked: number;
+  created_at: string;
+  current_mission: number;
+  meta_amount_free: number;
+  meta_amount_locked: number;
+  nickname: string;
+  remember_token: null | string;
+  updated_at: string;
+}
+
+
 export interface UserState {
-  user: any | null;
+  user: User | null;
   nickname: string;
   setNickname: (nickname: string) => void;
   setUser: (user: any) => void;

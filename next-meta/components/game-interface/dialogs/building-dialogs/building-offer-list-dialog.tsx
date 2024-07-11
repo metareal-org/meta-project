@@ -12,7 +12,7 @@ export default function BuildingOfferListDialog() {
   const { buildingOfferListDialog, setDialogState } = useDialogStore();
   const { currentLandDetails } = useLandStore();
   const [offers, setOffers] = useState([]);
-  const [highestOffer, setHighestOffer] = useState(null);
+  const [highest_offer, sethighest_offer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useUserStore();
 
@@ -23,7 +23,7 @@ export default function BuildingOfferListDialog() {
       try {
         const data = await fetchOffers(currentLandDetails.id);
         setOffers(data.offers);
-        setHighestOffer(data.highestOffer);
+        sethighest_offer(data.highest_offer);
       } catch (error) {
         console.error("Error fetching offers:", error);
       } finally {
@@ -42,7 +42,7 @@ export default function BuildingOfferListDialog() {
       fetchOffers(currentLandDetails.id)
         .then((data) => {
           setOffers(data.offers);
-          setHighestOffer(data.highestOffer);
+          sethighest_offer(data.highest_offer);
         })
         .catch((error) => {
           console.error("Error fetching offers:", error);
@@ -67,7 +67,7 @@ export default function BuildingOfferListDialog() {
             alt="Empty Land"
           />
         </div>
-        {highestOffer !== null && <div className="text-primary">Highest Offer: ${highestOffer}</div>}
+        {highest_offer !== null && <div className="text-primary">Highest Offer: ${highest_offer}</div>}
 
         <div>
           <BuildingOfferListTable isLoading={isLoading} data={offers} sortable={user?.id === currentLandDetails?.owner_id} />

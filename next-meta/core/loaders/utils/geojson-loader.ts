@@ -3,17 +3,17 @@ import useLandStore, { LandWithDetails } from "@/store/world-store/useLandStore"
 import { Map, LngLatBounds } from "mapbox-gl";
 import * as turf from "@turf/turf";
 import { Feature, Geometry } from "geojson";
+import { useUserStore } from "@/store/player-store/useUserStore";
 
 type BBox = [number, number, number, number];
 
 type LandFeature = Feature<Geometry, LandWithDetails>;
 
-export const GeoJsonLoader = (sourceId: string, layerId: string, getColor: (owner_id: number, is_for_sale: boolean) => string) => {
+export const GeoJsonLoader = (sourceId: string, layerId: string) => {
   const { mapbox } = useMapStore.getState();
   const { fetchLands } = useLandStore.getState();
   let lastRequest: string | null = null;
   let timeoutId: NodeJS.Timeout | null = null;
-
   const expandBounds = (bounds: LngLatBounds, factor: number = 1.5): LngLatBounds => {
     const bbox: BBox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
     const expanded = turf.transformScale(turf.bboxPolygon(bbox), factor);
@@ -25,6 +25,16 @@ export const GeoJsonLoader = (sourceId: string, layerId: string, getColor: (owne
     const bounds = expandBounds(map.getBounds());
     const zoom = map.getZoom();
     const currentRequest = `${bounds.toString()}-${zoom}`;
+
+    const getColorForLand = (owner_id: number, is_for_sale: boolean) => {
+      const user = useUserStore.getState().user;
+      if (!user) return "#132836";
+      if (owner_id === user.id && !is_for_sale) return "navy";
+      if (owner_id === user.id && is_for_sale) return "orange";
+      if (owner_id !== user.id && !is_for_sale) return "#134255";
+      if (owner_id !== user.id && is_for_sale) return "green";
+      return "#132836";
+    };
 
     if (currentRequest === lastRequest) {
       console.log("Skipping reload for the same area");
@@ -45,7 +55,7 @@ export const GeoJsonLoader = (sourceId: string, layerId: string, getColor: (owne
             try {
               return turf.feature(JSON.parse(land.coordinates), {
                 ...land,
-                "fill-color": getColor(land.owner_id, land.is_for_sale),
+                "fill-color": getColorForLand(land.owner_id, land.is_for_sale),
               }) as LandFeature;
             } catch (error) {
               console.error("Error parsing land coordinates:", error, land);
