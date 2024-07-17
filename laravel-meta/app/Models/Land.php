@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Land extends Model
 {
-    protected $appends = ['type', 'owner_nickname'];
+    protected $appends = ['type', 'owner_nickname', 'last_auction_id'];
 
     protected function type(): Attribute
     {
@@ -17,8 +18,6 @@ class Land extends Model
             get: fn() => "building",
         );
     }
-
-
     protected function ownerNickname(): Attribute
     {
         return Attribute::make(
@@ -27,6 +26,15 @@ class Land extends Model
                     return null;
                 }
                 return $this->owner->nickname ?? null;
+            },
+        );
+    }
+
+    protected function lastAuctionId(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                return $this->lastAuction->id ?? null;
             },
         );
     }
@@ -44,5 +52,15 @@ class Land extends Model
     public function offers(): HasMany
     {
         return $this->hasMany(Offer::class);
+    }
+
+    public function auctions(): HasMany
+    {
+        return $this->hasMany(Auction::class);
+    }
+
+    public function activeAuction()
+    {
+        return $this->auctions()->where('status', 'active')->latest()->first();
     }
 }

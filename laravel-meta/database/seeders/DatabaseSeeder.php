@@ -14,7 +14,6 @@ class DatabaseSeeder extends Seeder
     {
         // Create lands
         $this->call([LandSeeder::class]);
-
         $CP = 5000;
         $META = 5000000;
         $MISSION = 8;
@@ -35,7 +34,7 @@ class DatabaseSeeder extends Seeder
         ]);
         User::create([
             'id' => 2,
-            'address' => '0xd8579F07dD06dE0fb8e9b21f3ECC3C7d0480c81B',
+            'address' => '0xd8579f07dd06de0fb8e9b21f3ecc3c7d0480c81b',
             'nickname' => 'Charger',
             'avatar_url' => 'https://models.readyplayer.me/668e7d66d77fc1238ca3fab1.glb?quality=low&meshLod=0',
             'cp_amount_free' => $CP,
@@ -47,16 +46,16 @@ class DatabaseSeeder extends Seeder
             'updated_at' => '2024-07-04 10:56:04',
         ]);
         // Create additional users
-        for ($i = 3; $i <= 10; $i++) {
-            User::create([
-                'id' => $i,
-                'address' => '0x' . substr(md5(mt_rand()), 0, 40),
-                'nickname' => 'User' . $i,
-                'cp_amount_free' => $CP,
-                'meta_amount_free' => $META,
-                'current_mission' => random_int(1, 10),
-            ]);
-        }
+        // for ($i = 3; $i <= 10; $i++) {
+        //     User::create([
+        //         'id' => $i,
+        //         'address' => '0x' . substr(md5(mt_rand()), 0, 40),
+        //         'nickname' => 'User' . $i,
+        //         'cp_amount_free' => $CP,
+        //         'meta_amount_free' => $META,
+        //         'current_mission' => random_int(1, 10),
+        //     ]);
+        // }
 
         // Get all valid user IDs
         $userIds = User::pluck('id')->toArray();

@@ -4,6 +4,7 @@ import { Map, LngLatBounds } from "mapbox-gl";
 import * as turf from "@turf/turf";
 import { Feature, Geometry } from "geojson";
 import { useUserStore } from "@/store/player-store/useUserStore";
+import { DEBUG } from "@/core/constants";
 
 type BBox = [number, number, number, number];
 
@@ -37,7 +38,7 @@ export const GeoJsonLoader = (sourceId: string, layerId: string) => {
     };
 
     if (currentRequest === lastRequest) {
-      console.log("Skipping reload for the same area");
+      DEBUG && console.log("Skipping reload for the same area");
       return;
     }
 

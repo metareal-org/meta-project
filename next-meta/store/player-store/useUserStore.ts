@@ -1,6 +1,6 @@
 import { fetchUser } from "@/lib/api/user";
 import { create } from "zustand";
-
+import { DEBUG } from '../../core/constants';
 
 export interface User {
   id: number;
@@ -17,7 +17,6 @@ export interface User {
   remember_token: null | string;
   updated_at: string;
 }
-
 
 export interface UserState {
   user: User | null;
@@ -148,7 +147,7 @@ export const useUserStore = create<UserState>((set) => ({
     })),
   setMetaExact: (amount: number) =>
     set((state) => {
-      console.log("Setting meta amount in store:", amount);
+      DEBUG && console.log("Setting meta amount in store:", amount);
       return {
         metaAmount: {
           free: amount,
@@ -160,7 +159,7 @@ export const useUserStore = create<UserState>((set) => ({
   fetchUserBalance: async () => {
     try {
       const userData: any = await fetchUser();
-      console.log(userData);
+      DEBUG && console.log(userData);
       set((state) => ({
         cpAmount: {
           free: userData.user.cp_amount_free,
@@ -174,7 +173,7 @@ export const useUserStore = create<UserState>((set) => ({
         },
       }));
     } catch (error) {
-      console.error("Failed to fetch user balance:", error);
+      DEBUG && console.error("Failed to fetch user balance:", error);
     }
   },
 }));

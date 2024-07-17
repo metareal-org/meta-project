@@ -4,6 +4,8 @@ import BuildingSellDialog from "@/components/game-interface/dialogs/building-dia
 import BuildingUpdateSellDialog from "@/components/game-interface/dialogs/building-dialogs/building-update-sell-dialog";
 import BuildingOfferListDialog from "@/components/game-interface/dialogs/building-dialogs/building-offer-list-dialog";
 import BuildingBuyDialog from "./building-dialogs/building-buy-dialog";
+import BuildingAuctionDialog from "./building-dialogs/building-auction-dialog";
+import BuildingAuctionBidDialog from "./building-dialogs/building-auction-bid-dialog";
 export default function Dialogs() {
   return (
     <>
@@ -12,6 +14,8 @@ export default function Dialogs() {
       <BuildingOfferListDialog />
       <BuildingBuyDialog />
       <BuildingOfferDialog />
+      <BuildingAuctionDialog />
+      <BuildingAuctionBidDialog />
     </>
   );
 }

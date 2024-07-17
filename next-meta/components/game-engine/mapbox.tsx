@@ -7,7 +7,7 @@ import { setupClickInteractions } from "@/core/interactions/click-intractions";
 import useThreeboxStore, { ThreeboxStore } from "@/store/engine-store/useThreeboxStore";
 import { Threebox } from "threebox-plugin";
 import loadMarkers from "@/core/loaders/markers-load/_index";
-import { AZADI_TOWER_COORDINATES, UNIT_COORDINATES } from "@/core/constants";
+import { AZADI_TOWER_COORDINATES, DEBUG, UNIT_COORDINATES } from "@/core/constants";
 import useMissionStore from "@/store/useMissionStore";
 import * as THREE from "three";
 import { GeoJsonLoader } from "@/core/loaders/utils/geojson-loader";
@@ -21,6 +21,7 @@ export default function Mapbox() {
   const { threebox, setThreebox } = useThreeboxStore() as ThreeboxStore;
   const { selectedMission } = useMissionStore();
   const { user } = useUserStore();
+  const [rtlLoaded, setRtlLoaded] = useState(false);
   mapboxgl.accessToken = "pk.eyJ1Ijoic3ViZGFuaWFsIiwiYSI6ImNsNTU3cmcwdjE2cm0zZnFxdm1pemZ3cjQifQ.fLqs4EX703SYVVE0DzknNw";
   useEffect(() => {
     if (isClient) return;
@@ -28,15 +29,15 @@ export default function Mapbox() {
   }, []);
 
   useEffect(() => {
-    if (!isClient) return;
+    if (!isClient || rtlLoaded) return;
     mapboxgl.setRTLTextPlugin(
       "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js",
-      (e) => {
-        console.log(e);
+      () => {
+        setRtlLoaded(true);
       },
       true
     );
-  }, [isClient]);
+  }, [isClient, rtlLoaded]);
 
   useEffect(() => {
     if (!mapbox && mapContainer.current) {

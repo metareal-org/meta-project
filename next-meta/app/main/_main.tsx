@@ -8,6 +8,7 @@ import MissionsManager from "@/components/game-engine/missions";
 import SpinWheel from "@/components/minigames/spinwheel/_spinwheel";
 import { Toaster } from "@/components/ui/toaster";
 import { Web3ModalProvider } from "@/components/game-engine/web3";
+import ConsoleLogger from "@/helpers/console-logger";
 export default function Main() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function Main() {
         <GameEngine />
         <GetLocation />
         <Toaster />
+        <ConsoleLogger />
       </Web3ModalProvider>
     </Fragment>
   );

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuctionController;
 use App\Http\Controllers\LandController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\TransactionController;
@@ -28,6 +29,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/lands/{id}/update-price', [LandController::class, 'updatePrice']);
     Route::post('/lands/{id}/cancel-sell', [LandController::class, 'cancelSell']);
 });
+//LAND-AUCTIONS
+Route::post('/lands/{id}/get-active-auction', [LandController::class, 'getLandActiveAuction']);
+
+//AUCTIONS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auctions/start/{landId}', [AuctionController::class, 'startAuction']);
+    Route::post('/auctions/{id}/bid', [AuctionController::class, 'placeBid']);
+    Route::get('/auctions/active', [AuctionController::class, 'getActiveAuctions']);
+});
+
+
 //OFFERS
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/offers/{landId}', [OfferController::class, 'getOffersByLand']);
@@ -35,11 +47,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/offers/submit', [OfferController::class, 'submitOffer']);
     Route::post('/offers/delete/{offerId}', [OfferController::class, 'deleteOffer']);
     Route::post('/offers/update/{offerId}', [OfferController::class, 'updateOffer']);
-    Route::post('/offers/accept/{offerId}', [OfferController::class, 'acceptOffer']);
 });
 
 //Transactions
 Route::middleware('auth:sanctum')->group(function () {
-   
     Route::post('/lands/{id}/buy', [TransactionController::class, 'buyLand']);
+    Route::post('/offers/accept/{offerId}', [TransactionController::class, 'acceptOffer']);
+});
+
+// Auctions
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auctions/create', [AuctionController::class, 'createAuction']);
+    Route::get('/auctions/land/{landId}/active', [AuctionController::class, 'getActiveAuctionForLand']);
+    Route::get('/auctions/land/{landId}/all', [AuctionController::class, 'getAllLandAuctions']);
+    Route::post('/auctions/{auctionId}/bid', [AuctionController::class, 'placeBid']);
+    Route::get('/auctions/{auctionId}/bids', [AuctionController::class, 'getBidsForAuction']);
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { DEFAULT_UNIT_COORDINATE, SERVER, SIGN_MESSAGE } from "@/core/constants";
+import { DEBUG, DEFAULT_UNIT_COORDINATE, SERVER, SIGN_MESSAGE } from "@/core/constants";
 import Cookies from "js-cookie";
 import axios from "axios";
 import axiosInstance from "@/lib/axios-instance";
@@ -64,11 +64,11 @@ export default function MissionInitialize() {
     createToken();
   }, [signedSignature, address]);
   useEffect(() => {
-    console.log("here");
+    DEBUG && console.log("Auth is valid");
     if (isAuthValid) {
       axiosInstance.get("user/show/").then((response) => {
         const user = response.data.user;
-        console.log(user);
+        DEBUG && console.log(user);
         useUserStore.getState().setUser(user);
         useUserStore.getState().setNickname(user.nickname || "");
         useUserStore.getState().setCpExact(user.cp_amount_free || 0);

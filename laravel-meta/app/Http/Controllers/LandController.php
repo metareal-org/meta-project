@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Auction;
 use App\Models\Land;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,22 +66,30 @@ class LandController extends Controller
             'land' => $land
         ]);
     }
-
     public function show($id)
     {
-        $land = Land::findOrFail($id);
-        return response()->json([
-            'id' => $land->id,
-            'owner_id' => $land->owner_id,
-            'owner_nickname' => $land->owner_nickname, 
-            'is_for_sale' => $land->is_for_sale,
-            'fixed_price' => $land->fixed_price,
-            'center_point' => $land->center_point,
-            'size' => $land->size,
-            'region' => $land->region,
-        ]);
+        $land = Land::with(['owner', 'transactions', 'offers'])
+            ->withCount('auctions')
+            ->findOrFail($id);
+    
+        $activeAuction = $land->auctions()
+            ->where('status', 'active')
+            ->where('end_time', '>', now())
+            ->latest()
+            ->first();
+    
+        if ($activeAuction) {
+            $activeAuction->load('bids');
+            $land->active_auction = $activeAuction;
+            $land->has_active_auction = true;
+        } else {
+            $land->active_auction = null;
+            $land->has_active_auction = false;
+        }
+    
+        return response()->json($land);
     }
-
+    
     public function updatePrice(Request $request, $id): JsonResponse
     {
         $land = Land::findOrFail($id);
@@ -121,4 +130,6 @@ class LandController extends Controller
             'land' => $land
         ]);
     }
+
+
 }

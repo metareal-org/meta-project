@@ -1,4 +1,4 @@
-// components/game-interface/drawers/building-drawer.tsx
+// components/game-interface/drawers/building-drawer/_building-drawer.tsx
 
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useLandStore from "@/store/world-store/useLandStore";
@@ -10,6 +10,7 @@ import BuildingSellDialog from "@/components/game-interface/dialogs/building-dia
 import BuildingOfferListDialog from "@/components/game-interface/dialogs/building-dialogs/building-offer-list-dialog";
 import BuildingUpdateSellDialog from "@/components/game-interface/dialogs/building-dialogs/building-update-sell-dialog";
 import BuildingOfferDialog from "@/components/game-interface/dialogs/building-dialogs/building-offer-dialog";
+import { useEffect, useState } from "react";
 
 const BuildingImage = ({ isLoading }: { isLoading: boolean }) =>
   isLoading ? (
@@ -28,7 +29,7 @@ const SaleStatus = ({ isLoading, isForSale, price }: { isLoading: boolean; isFor
   isLoading ? (
     <Skeleton className="h-8 mx-auto w-2/5 my-2" />
   ) : (
-    <div className="text-center border-t border-b text-lime border-white/50 text-xs py-2">
+    <div className="text-center border-t  border-white/30  text-primary text-xs pt-2">
       {isForSale ? `This property is available for purchase at ${price} Meta` : "This property is not for sale"}
     </div>
   );
@@ -73,8 +74,8 @@ const PropertyDetails = ({ isLoading, size, price }: { isLoading: boolean; size?
 );
 
 export default function BuildingDrawer() {
-  const { buildingDrawer, setDrawerState } = useDrawerStore();
   const { selectedLandId, currentLandDetails } = useLandStore();
+  const { buildingDrawer, setDrawerState } = useDrawerStore();
 
   const isLoading = !currentLandDetails;
 
@@ -99,9 +100,9 @@ export default function BuildingDrawer() {
           <OwnerSection isLoading={isLoading} ownerNickname={currentLandDetails?.owner_nickname} />
           <PropertyDetails isLoading={isLoading} size={currentLandDetails?.size} price={currentLandDetails?.fixed_price} />
         </div>
-        <div className="w-full border-t shadow mx-auto">
+        <div className="w-full border-t border-white/30 shadow mx-auto">
           <div className="flex items-center py-2 justify-center">
-            {isLoading ? <Skeleton className="h-10 w-3/4" /> : currentLandDetails && <BuildingButtons landDetails={currentLandDetails} />}
+            {isLoading ? <Skeleton className="h-10 w-3/4" /> : currentLandDetails && <BuildingButtons />}
           </div>
         </div>
       </div>

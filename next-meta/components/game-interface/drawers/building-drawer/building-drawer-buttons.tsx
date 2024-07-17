@@ -3,7 +3,7 @@ import useDialogStore from "@/store/gui-store/useDialogStore";
 import useLandStore, { Land } from "@/store/world-store/useLandStore";
 import useUnitStore from "@/store/world-store/useUnitStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { MouseEventHandler, ReactNode, useState, useMemo } from "react";
+import { MouseEventHandler, ReactNode, useState, useMemo, useEffect } from "react";
 import { updateUserPosition } from "@/lib/api/user";
 
 interface BuildingButtonProps {
@@ -29,7 +29,7 @@ const BuildingButton = ({ icon, text, onClick, className = "", style = {}, disab
   </Button>
 );
 
-const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
+const BuildingButtons = () => {
   const [isMoveButtonDisabled, setIsMoveButtonDisabled] = useState(false);
   const { setDialogState } = useDialogStore();
   const { moveMarker, marker } = useUnitStore();
@@ -37,11 +37,12 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
   const { user } = useUserStore();
 
   const { isOwner, isForSale } = useMemo(() => {
+    if (!currentLandDetails) return {};
     return {
-      isOwner: landDetails.owner_id === user?.id,
-      isForSale: landDetails.is_for_sale,
+      isOwner: currentLandDetails.owner_id === user?.id,
+      isForSale: currentLandDetails.is_for_sale,
     };
-  }, [landDetails, user]);
+  }, [currentLandDetails, user]);
 
   const buttonConfigs = [
     {
@@ -60,7 +61,7 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
             const centerPoint = JSON.parse(centerPointString);
             console.log("Center point:", centerPoint);
             const newCoordinates: [number, number] = [centerPoint.longitude, centerPoint.latitude];
-            
+
             updateUserPosition(newCoordinates)
               .then(() => {
                 moveMarker(marker as mapboxgl.Marker, newCoordinates);
@@ -99,7 +100,7 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/financial-startup-8663166-6945082.png?f=webp" />,
       text: "Sell",
       onClick: () => setDialogState("buildingSellDialog", true),
-      condition: isOwner && !isForSale,
+      condition: isOwner && !isForSale && !currentLandDetails?.has_active_auction,
     },
     {
       style: {
@@ -127,6 +128,25 @@ const BuildingButtons = ({ landDetails }: { landDetails: Land }) => {
       text: "Offer",
       onClick: () => setDialogState("buildingOfferDialog", true),
       condition: !isOwner,
+    },
+
+    {
+      style: {
+        background: !isOwner ? "linear-gradient(180deg, #9900FF 0%, #6600FF 100%)" : "linear-gradient(180deg, #f8e3ae 0%, #ca8067 100%)",
+      },
+      icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/hand-holding-auction-bid-board-4710526-3932217.png?f=webp" />,
+      text: isOwner ? "Auction" : "Join Auction",
+      onClick: () => setDialogState("buildingAuctionBidDialog", true),
+      condition: currentLandDetails?.has_active_auction,
+    },
+    {
+      style: {
+        background: "linear-gradient(180deg, #FF9900 0%, #FF6600 100%)",
+      },
+      icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/auction-6813960-5603563.png?f=webp" />,
+      text: "Create Auction",
+      onClick: () => setDialogState("buildingAuctionDialog", true),
+      condition: isOwner && !isForSale && !(currentLandDetails?.has_active_auction),
     },
   ];
 

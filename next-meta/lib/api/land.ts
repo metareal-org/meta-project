@@ -1,6 +1,5 @@
 import axiosInstance from "../axios-instance";
-import { SERVER } from "@/core/constants";
-
+import { DEBUG, SERVER } from "@/core/constants";
 export const fetchLandsFromServer = async (bounds: mapboxgl.LngLatBounds, zoom: number) => {
   const response = await axiosInstance.get(`${SERVER}/lands`, {
     params: {
@@ -22,10 +21,8 @@ export const fetchLandDetails = async (id: number, signal?: AbortSignal) => {
     return response.data;
   } catch (error) {
     if (axiosInstance.isCancel(error)) {
-      console.log("Request canceled:", (error as Error).message);
-      throw error;
+      DEBUG && console.log("Request canceled:", (error as Error).message);
     }
-    throw error;
   }
 };
 export const fetchUserLands = async () => {
@@ -46,4 +43,14 @@ export const updateLandPrice = async (id: number, price: number) => {
 export const cancelLandSell = async (id: number) => {
   const response = await axiosInstance.post(`/lands/${id}/cancel-sell`);
   return response.data;
+};
+
+export const fetchSelectedLandActiveAuction = async (id: number) => {
+  try {
+    const response = await axiosInstance.get(`${SERVER}/lands/{id}/get-active-auction`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching land auctions:", error);
+    throw error;
+  }
 };

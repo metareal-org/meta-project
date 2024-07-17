@@ -8,3 +8,5 @@ export const SIGN_MESSAGE = "MetaReal";
 export const DEFAULT_UNIT_COORDINATE =  [51.42054437, 35.7199985] as [number, number]
 // export const SERVER = "https://services.metareal.games"
 export const SERVER = process.env.NEXT_PUBLIC_SERVER;
+
+export const DEBUG = false;

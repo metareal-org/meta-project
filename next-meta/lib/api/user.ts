@@ -1,3 +1,4 @@
+import { DEBUG } from "@/core/constants";
 import axiosInstance from "../axios-instance";
 import axios from "axios";
 
@@ -12,7 +13,6 @@ interface UserUpdateResponse {
     user: UserData;
   };
 }
-
 interface UserData {
   id: number;
   address: string;
@@ -35,7 +35,7 @@ interface OutfitGenderResponse {
 // API Functions
 export const fetchUser = async (): Promise<UserData> => {
   const response = await axiosInstance.get<UserData>("/user/show");
-  console.log(response);
+  DEBUG && console.log(response);
   return response.data;
 };
 
