@@ -26,7 +26,7 @@ interface BuildingOfferListTableProps {
 
 export default function BuildingOfferListTable({ data, sortable = true, isLoading }: BuildingOfferListTableProps) {
   const { currentLandDetails, fetchLandDetails } = useLandStore();
-  const { fetchUserBalance } = useUserStore();
+  const { fetchUserData } = useUserStore();
   const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
 
   const columns: ColumnDef<Offer>[] = [
@@ -126,7 +126,7 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
     try {
       await acceptOffer(Number(offerId));
       console.log("Offer accepted successfully");
-      fetchUserBalance();
+      fetchUserData();
       if (currentLandDetails) {
         await fetchLandDetails(currentLandDetails.id);
       }

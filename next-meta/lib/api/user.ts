@@ -79,3 +79,18 @@ export const updateUserNickname = async (nickname: string): Promise<UserUpdateRe
   });
   return response.data;
 };
+
+export const applyReferralCode = async (referralCode: string) => {
+  try {
+    const response = await axiosInstance.post('user/apply-referral', { referral_code: referralCode });
+    response.data.referralApplied = true;
+    return response.data;
+  } catch (error:any) {
+    if (error.response && error.response.data && error.response.data.error) {
+      throw new Error(error);
+    } else {
+      throw new Error('An error occurred while applying the referral code');
+    }
+  }
+};
+

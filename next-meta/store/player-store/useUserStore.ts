@@ -1,8 +1,12 @@
-import { fetchUser } from "@/lib/api/user";
+// store/player-store/useUserStore.ts
+
 import { create } from "zustand";
-import { DEBUG } from '../../core/constants';
+import { DEBUG } from "../../core/constants";
+import { fetchUser } from "@/lib/api/user";
+import { AssetData } from "@/lib/api/asset";
 
 export interface User {
+  assets: AssetData;
   id: number;
   address: string;
   avatar_url: string;
@@ -22,7 +26,7 @@ export interface UserState {
   user: User | null;
   nickname: string;
   setNickname: (nickname: string) => void;
-  setUser: (user: any) => void;
+  setUser: (user: User) => void;
   cpAmount: {
     free: number;
     locked: number;
@@ -43,7 +47,7 @@ export interface UserState {
   unlockMeta: (amount: number) => void;
   setCpExact: (amount: number) => void;
   setMetaExact: (amount: number) => void;
-  fetchUserBalance: () => Promise<void>;
+  fetchUserData: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -156,11 +160,12 @@ export const useUserStore = create<UserState>((set) => ({
         },
       };
     }),
-  fetchUserBalance: async () => {
+  fetchUserData: async () => {
     try {
       const userData: any = await fetchUser();
       DEBUG && console.log(userData);
       set((state) => ({
+        user: userData.user,
         cpAmount: {
           free: userData.user.cp_amount_free,
           locked: userData.user.cp_amount_locked,
@@ -177,4 +182,4 @@ export const useUserStore = create<UserState>((set) => ({
     }
   },
 }));
-// listener global bara offer bezar taghir krd user balance upshe
+

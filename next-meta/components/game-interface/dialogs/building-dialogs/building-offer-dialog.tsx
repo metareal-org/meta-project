@@ -14,7 +14,7 @@ export default function BuildingOfferDialog() {
   const { buildingOfferDialog, setDialogState } = useDialogStore();
   const { currentLandDetails } = useLandStore();
   const [offerPrice, setOfferPrice] = useState("");
-  const { fetchUserBalance } = useUserStore();
+  const { fetchUserData } = useUserStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -72,7 +72,7 @@ export default function BuildingOfferDialog() {
         title: user_offer ? "Bid updated" : "Bid placed",
         description: user_offer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
       });
-      fetchUserBalance(); // Fetch updated balance after offer submission/update
+      fetchUserData(); // Fetch updated balance after offer submission/update
     } catch (error) {
       console.error("Error submitting/updating offer:", error);
       toast({
@@ -97,7 +97,7 @@ export default function BuildingOfferDialog() {
         description: "Your bid has been canceled successfully",
       });
       setOfferPrice("");
-      fetchUserBalance(); 
+      fetchUserData(); 
     } catch (error) {
       console.error("Error deleting offer:", error);
       toast({

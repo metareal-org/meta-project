@@ -1,27 +1,34 @@
-import React, { cache } from "react";
+// components/game-interface/drawers/inventory-drawer/_inventory-drawer.tsx
+
+import React from "react";
 import { Card, Title } from "@/components/ui/tags";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import { XCircle } from "lucide-react";
 import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
 import useAlertStore from "@/store/gui-store/useAlertStore";
-import { useInventoryStore } from "@/store/player-store/useInventoryStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { MissionId } from "@/core/missions/mission-config";
 import useMissionStore from "@/store/useMissionStore";
-import { updateCpAmount, updateMetaAmount } from "@/lib/api/user";
+import { updateMetaAmount } from "@/lib/api/user";
+import { useAssetStore } from "@/store/player-store/useAssetStore";
+import { AssetData } from "@/lib/api/asset";
 
 export default function InventoryDrawer() {
   const { inventoryDrawer, setDrawerState } = useDrawerStore();
   const { setShowSpinModal } = useSpinwheelStore();
   const { openAlert } = useAlertStore();
-  const { items } = useInventoryStore();
-  const { setCpExact, setMetaExact } = useUserStore();
+  const { addCp, setMetaExact } = useUserStore();
   const { setSelectedMission } = useMissionStore();
-  const { updateItemCount } = useInventoryStore();
+  const { updateAsset } = useAssetStore();
+  const { user } = useUserStore();
+
   if (!inventoryDrawer) return null;
+  if (!user) return null;
+
   const handleClose = () => {
     setDrawerState("inventoryDrawer", false);
   };
+
   const showReadyToPlayAlert = () => {
     console.log("Showing ready to play alert");
     openAlert({
@@ -39,33 +46,47 @@ export default function InventoryDrawer() {
       ],
     });
   };
-  const handleItemClick = async (name: string, count: number) => {
+
+  const handleItemClick = async (name: keyof AssetData, count: number) => {
     if (count === 0) return;
-    if (name === "Ticket") {
+    if (name === "ticket") {
       setDrawerState("inventoryDrawer", false);
       showReadyToPlayAlert();
     }
-    if (name === "Gift") {
+    if (name === "gift") {
       try {
-        await updateCpAmount("add", 5000);
+        addCp(5000);
         await updateMetaAmount("add", 1000000);
+        updateAsset("wood", 100);
+        updateAsset("sand", 30);
+        updateAsset("gift", -1);
       } catch {
       } finally {
-        setCpExact(5000);
         setMetaExact(1000000);
         openAlert({
           title: "Gift opened",
-          picture: "/assets/images/inventory/openedbox.jpg",
+          picture: "https://placeimg.com/300/200/nature",
           description: (
             <>
               <div className="grid gap-2">
-                Lorem ipsum dolor sit amet, consectetur adipisicing elit. Esse, asperiores! Fugiat pariatur quas ea assumenda possimus saepe voluptatibus
-                quibusdam ullam quidem alias dolorem
+                Congratulations! You've unlocked a treasure trove of resources. Your inventory has been enriched with valuable items to aid you on your journey.
               </div>
-              <div className="bg-black-1000/20 mt-4 rounded-xl w-full pt-4 flex  items-center justify-center">
-                <div className="flex-col items-center h-32">
+              <div className="bg-black-1000/20 mt-4 rounded-xl w-full pt-4 flex flex-wrap items-center justify-center">
+                <div className="flex-col items-center h-32 m-2">
                   <img className="!w-20 p-2 border rounded block" src="/assets/images/tokens/cp.webp" />
                   <div className="text-xs break-words text-center mt-2">5000 CP</div>
+                </div>
+                <div className="flex-col items-center h-32 m-2">
+                  <img className="!w-20 p-2 border rounded block" src="https://placeimg.com/80/80/tech" />
+                  <div className="text-xs break-words text-center mt-2">1,000,000 META</div>
+                </div>
+                <div className="flex-col items-center h-32 m-2">
+                  <img className="!w-20 p-2 border rounded block" src="https://placeimg.com/80/80/arch" />
+                  <div className="text-xs break-words text-center mt-2">100 Wood</div>
+                </div>
+                <div className="flex-col items-center h-32 m-2">
+                  <img className="!w-20 p-2 border rounded block" src="https://placeimg.com/80/80/nature" />
+                  <div className="text-xs break-words text-center mt-2">30 Sand</div>
                 </div>
               </div>
             </>
@@ -74,7 +95,6 @@ export default function InventoryDrawer() {
             {
               label: "Close",
               onClick: () => {
-                updateItemCount("Gift", 0);
                 setSelectedMission(MissionId.Advanture);
                 setDrawerState("inventoryDrawer", false);
               },
@@ -84,6 +104,22 @@ export default function InventoryDrawer() {
       }
     }
   };
+
+  const items = [
+    {
+      name: "ticket" as const,
+      count: user.assets?.ticket,
+      imgSrc: "/assets/images/inventory/ticket_icon.webp",
+      className: "inventory-ticket-target",
+    },
+    {
+      name: "gift" as const,
+      count: user.assets?.gift,
+      imgSrc: "/assets/images/inventory/gift_icon.webp",
+      className: "inventory-gift-target",
+    },
+  ];
+
   return (
     <div className="fixed bottom-5 z-10 bg-black min-h-[200px] right-20 my-auto w-full max-w-sm shadow-lg rounded-lg p-4">
       <header className="flex pb-2 justify-between items-center">

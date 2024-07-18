@@ -1,3 +1,5 @@
+// components/minigames/spinwheel/_spinwheel.tsx
+
 import { useState, useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
@@ -8,39 +10,34 @@ import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useMissionStore from "@/store/useMissionStore";
 import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
 import { MissionId } from "@/core/missions/mission-config";
-import { useInventoryStore } from "@/store/player-store/useInventoryStore";
+import { useAssetStore } from "@/store/player-store/useAssetStore";
 
 const constants = {
   wheel: {
     baseSpinDegree: 180,
     additionalSpin: 324.5,
-    // spinMultiplier: 4,
     spinMultiplier: 0,
   },
   animation: {
-    // wheelDuration: 7,
     wheelDuration: 1,
     indicatorDuration: 0.1,
-    // indicatorRepeat: 50,
     indicatorRepeat: 0,
     indicatorRotation: -10,
   },
-  // alertDelay: 2000,
   alertDelay: 1,
 };
 
 export default function SpinWheel() {
   const [spinning, setSpinning] = useState(false);
-  const { SpinsBalance, decereaseSpinBalance, showSpinModal, setShowSpinModal } = useSpinwheelStore();
+  const { showSpinModal, setShowSpinModal } = useSpinwheelStore();
   const { openAlert } = useAlertStore();
   const { activeDrawer } = useDrawerStore();
-  const { updateItemCount } = useInventoryStore();
-  const { selectedMission } = useMissionStore();
+  const { selectedMission, setSelectedMission } = useMissionStore();
+  const { addStep } = useJoyrideStore();
+  const { assets, updateAsset } = useAssetStore();
   const wheelRef = useRef(null);
   const indicatorRef = useRef(null);
   const [giftJoyPlayed, setGiftJoyPlayed] = useState(false);
-  const { setSelectedMission } = useMissionStore();
-  const { addStep } = useJoyrideStore();
 
   useEffect(() => {
     setIndicatorTransformOrigin();
@@ -53,9 +50,9 @@ export default function SpinWheel() {
   };
 
   const spinWheel = () => {
-    if (!spinning && SpinsBalance > 0) {
+    if (!spinning && assets.ticket > 0) {
       setSpinning(true);
-      decereaseSpinBalance();
+      updateAsset("ticket", -1);
       const newSpinDegree = constants.wheel.baseSpinDegree + constants.wheel.additionalSpin * constants.wheel.spinMultiplier;
       animateWheel(newSpinDegree);
       animateIndicator();
@@ -66,7 +63,6 @@ export default function SpinWheel() {
     gsap.to(wheelRef.current, {
       duration: constants.animation.wheelDuration,
       rotation: newSpinDegree,
-      // ease: "power1.out",
       onComplete: () => {
         setSpinning(false);
       },
@@ -77,9 +73,7 @@ export default function SpinWheel() {
     gsap.to(indicatorRef.current, {
       duration: constants.animation.indicatorDuration,
       rotation: constants.animation.indicatorRotation,
-      // yoyo: true,
       repeat: constants.animation.indicatorRepeat,
-      // ease: "power2.inOut",
       onComplete: () => {
         gsap.set(indicatorRef.current, {
           rotation: 0,
@@ -109,8 +103,7 @@ export default function SpinWheel() {
     console.log("Gift claimed!");
     setShowSpinModal(false);
     setSelectedMission(MissionId.OpenGiftBox);
-    updateItemCount("Gift", 1);
-    updateItemCount("Ticket", 0);
+    updateAsset("gift", 1);
   };
 
   const handleClose = () => {
@@ -150,14 +143,14 @@ export default function SpinWheel() {
             <button
               className={`mt-4 scale-110 transition-all hover:scale-125 px-10 py-2 border-2 border-[#3020a6] bg-[#5e30d4] text-white rounded hover:bg-blue-600 ${
                 spinning && "opacity-90 disabled pointer-events-none"
-              } ${SpinsBalance <= 0 && "disabled pointer-events-none opacity-80"}`}
+              } ${assets.ticket <= 0 && "disabled pointer-events-none opacity-80"}`}
               onClick={spinWheel}
               disabled={spinning}
             >
-              {spinning ? "Spinning..." : SpinsBalance > 0 ? "Spin Wheel" : "not enough ticket"}
+              {spinning ? "Spinning..." : assets.ticket > 0 ? "Spin Wheel" : "not enough ticket"}
             </button>
           </section>
-          <div className="absolute px-2 py-1 text-sm bottom-5 right-5 bg-black-950 rounded text-white">Your tickets : {SpinsBalance}</div>
+          <div className="absolute px-2 py-1 text-sm bottom-5 right-5 bg-black-950 rounded text-white">Your tickets : {assets.ticket}</div>
         </div>
       </Component>
     </>

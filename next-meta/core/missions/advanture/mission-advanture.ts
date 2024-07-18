@@ -12,7 +12,7 @@ export default function MissionAdvanture() {
   const { mapbox } = useMapStore();
   const { selectedMission } = useMissionStore();
   const { playerOffers } = usePlayerOffersStore();
-  const { fetchUserBalance } = useUserStore();
+  const { fetchUserData } = useUserStore();
   useEffect(() => {
     if (selectedMission?.id !== MissionId.Advanture || !mapbox) return;
     updateUserMission(MissionId.Advanture)
@@ -29,7 +29,7 @@ export default function MissionAdvanture() {
   }, [selectedMission, mapbox]);
 
   useEffect(() => {
-    fetchUserBalance();
+    fetchUserData();
   }, [playerOffers]);
 
   return null;

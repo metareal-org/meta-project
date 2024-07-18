@@ -19,7 +19,7 @@ const useTransactionStore = create<TransactionStore>((set) => ({
       const result = await buyLand(landId);
 
       // Update user's CP balance
-      userStore.fetchUserBalance();
+      userStore.fetchUserData();
 
       // Re-fetch land details
       await landStore.fetchLandDetails(landId);
