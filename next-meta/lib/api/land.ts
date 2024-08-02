@@ -15,7 +15,7 @@ export const fetchLandsFromServer = async (bounds: mapboxgl.LngLatBounds, zoom: 
   return response.data;
 };
 
-export const fetchLandDetails = async (id: number, signal?: AbortSignal) => {
+export const apiFetchLandDetails = async (id: number, signal?: AbortSignal) => {
   try {
     const response = await axiosInstance.get(`${SERVER}/lands/${id}`, { signal });
     return response.data;
@@ -27,6 +27,10 @@ export const fetchLandDetails = async (id: number, signal?: AbortSignal) => {
 };
 export const fetchUserLands = async () => {
   const response = await axiosInstance.get(`${SERVER}/lands/user`);
+  return response.data;
+};
+export const fetchAllLands = async () => {
+  const response = await axiosInstance.get(`${SERVER}/lands/all`);
   return response.data;
 };
 

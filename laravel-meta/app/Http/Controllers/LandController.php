@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Auction;
 use App\Models\Land;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,6 +11,11 @@ class LandController extends Controller
 {
     private const MIN_ZOOM_LEVEL = 4; // Lowered from 5 to 4
 
+    public function all(): JsonResponse
+    {
+        $lands = Land::all();
+        return response()->json($lands);
+    }
     public function index(Request $request): JsonResponse
     {
         $bounds = $request->input('bounds');
@@ -29,6 +33,23 @@ class LandController extends Controller
         $lands = $query->get();
         return response()->json($lands);
     }
+
+    public function show($id): JsonResponse
+    {
+        $land = Land::with([
+            'owner',
+            'transactions',
+            'offers',
+            'activeAuction.bids.user'
+        ])->findOrFail($id);
+        $response = $land->toArray();
+        $response['active_auction'] = $land->formatted_active_auction;
+        $response['has_active_auction'] = $land->has_active_auction;
+        $response['minimum_bid'] = $land->minimum_bid;
+        return response()->json($response);
+    }
+
+
     public function getUserLands()
     {
         $user = Auth::user();
@@ -66,30 +87,7 @@ class LandController extends Controller
             'land' => $land
         ]);
     }
-    public function show($id)
-    {
-        $land = Land::with(['owner', 'transactions', 'offers'])
-            ->withCount('auctions')
-            ->findOrFail($id);
-    
-        $activeAuction = $land->auctions()
-            ->where('status', 'active')
-            ->where('end_time', '>', now())
-            ->latest()
-            ->first();
-    
-        if ($activeAuction) {
-            $activeAuction->load('bids');
-            $land->active_auction = $activeAuction;
-            $land->has_active_auction = true;
-        } else {
-            $land->active_auction = null;
-            $land->has_active_auction = false;
-        }
-    
-        return response()->json($land);
-    }
-    
+
     public function updatePrice(Request $request, $id): JsonResponse
     {
         $land = Land::findOrFail($id);
@@ -130,6 +128,4 @@ class LandController extends Controller
             'land' => $land
         ]);
     }
-
-
 }

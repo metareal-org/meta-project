@@ -34,7 +34,6 @@ const useAvatarStore = create<AvatarState>((set, get) => ({
     const formatted = avatarUrl.replace(".glb", ".png").split("?")[0] + "?size=600";
     set({ formattedAvatarUrl: formatted });
   },
-  
   setAvatarUrl: (url) => {
     set({ avatarUrl: url });
     get().updateFormattedAvatarUrl();

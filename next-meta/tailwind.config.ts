@@ -45,6 +45,7 @@ const config = {
         "rose-fg": "#9f1239",
         red: {
           DEFAULT: "#ef4444",
+          "fg": "#991b1b",
           "50": "#fef2f2",
           "100": "#fee2e2",
           "200": "#fecaca",

@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import axiosInstance from "@/lib/axios-instance";
-import { fetchLandsFromServer, fetchLandDetails, fetchSelectedLandActiveAuction } from "@/lib/api/land";
+import { fetchLandsFromServer, apiFetchLandDetails, fetchSelectedLandActiveAuction } from "@/lib/api/land";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { DEBUG } from "@/core/constants";
 export interface Land {
   id: number;
   owner_id: number;
   is_for_sale: boolean;
+  is_locked: boolean;
   auction?: boolean;
   region?: string;
   fixed_price: number;
@@ -23,11 +24,13 @@ export interface LandWithDetails extends Land {
   center_point: string;
   size: number;
   "fill-color": string;
+  minimum_bid: number;
   active_auction: {
     id: number;
     land_id: number;
     owner_id: number;
     minimum_price: number;
+    highest_bid: number;
     start_time: string;
     end_time: string;
     status: "active" | "canceled" | "done";
@@ -97,7 +100,7 @@ const useLandStore = create<LandStoreState>((set, get) => ({
     set({ currentFetchController: controller });
 
     try {
-      const landDetails = await fetchLandDetails(id, controller.signal);
+      const landDetails = await apiFetchLandDetails(id, controller.signal);
       set({ currentLandDetails: landDetails });
       const { mapbox } = useMapStore.getState();
       if (mapbox) {

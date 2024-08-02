@@ -13,7 +13,8 @@ export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
   const { address, status } = useAccount();
   const { data: signedSignature, signMessage } = useSignMessage();
-  const { selectedMission } = useMissionStore();
+  const { setSelectedMission, selectedMission } = useMissionStore();
+  const { fetchUser, updateUserMission } = useUserStore();
   const AUTH_ROUTE = `${SERVER}/user/authenticate/`;
   useEffect(() => {
     if (selectedMission.id != MissionId.Initialize) return;
@@ -66,16 +67,8 @@ export default function MissionInitialize() {
   useEffect(() => {
     DEBUG && console.log("Auth is valid");
     if (isAuthValid) {
-      axiosInstance.get("user/show/").then((response) => {
-        const user = response.data.user;
-        DEBUG && console.log(user);
-        useUserStore.getState().setUser(user);
-        useUserStore.getState().setNickname(user.nickname || "");
-        useUserStore.getState().setCpExact(user.cp_amount_free || 0);
-        useUserStore.getState().setMetaExact(user.meta_amount_free || 0);
-        useAvatarStore.getState().setAvatarUrl(user.avatar_url || "");
-        useUnitStore.getState().setUnitCoordinates(JSON.parse(user.coordinates) || DEFAULT_UNIT_COORDINATE);
-        useMissionStore.getState().setSelectedMission(Number(user.current_mission) || MissionId.SetNickname);
+      fetchUser().then((user) => {
+        setSelectedMission(Number(user?.current_mission) || MissionId.SetNickname);
       });
     }
   }, [isAuthValid]);

@@ -2,11 +2,13 @@ import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "@/core/missions/mission-config";
 import useAvatarStore, { DEFAULT_AVATAR } from "@/store/objects-store/useAvatarStore";
 import { useEffect } from "react";
-import { updateUserMission, updateUserAvatar } from "@/lib/api/user";
+import { useUserStore } from "@/store/player-store/useUserStore";
 const DEBUG = true;
 export default function MissionCreateAvatar() {
-  const { selectedMission, setSelectedMission } = useMissionStore();
+  const { updateUserMission, updateUserAvatar } = useUserStore.getState();
+  const { selectedMission, setSelectedMission } = useMissionStore.getState();
   const { avatarUrl } = useAvatarStore();
+
   useEffect(() => {
     if (selectedMission.id !== MissionId.CreateAvatar) return;
 

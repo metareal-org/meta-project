@@ -1,16 +1,15 @@
 // components/minigames/spinwheel/_spinwheel.tsx
-
 import { useState, useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
 import { Component } from "@/components/ui/tags";
 import useAlertStore from "@/store/gui-store/useAlertStore";
 import { X } from "lucide-react";
-import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useMissionStore from "@/store/useMissionStore";
-import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
 import { MissionId } from "@/core/missions/mission-config";
 import { useAssetStore } from "@/store/player-store/useAssetStore";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { useQuestStore } from "@/store/useQuestStore";
 
 const constants = {
   wheel: {
@@ -31,13 +30,10 @@ export default function SpinWheel() {
   const [spinning, setSpinning] = useState(false);
   const { showSpinModal, setShowSpinModal } = useSpinwheelStore();
   const { openAlert } = useAlertStore();
-  const { activeDrawer } = useDrawerStore();
-  const { selectedMission, setSelectedMission } = useMissionStore();
-  const { addStep } = useJoyrideStore();
-  const { assets, updateAsset } = useAssetStore();
+  const { setSelectedMission } = useMissionStore();
+  const { user } = useUserStore();
   const wheelRef = useRef(null);
   const indicatorRef = useRef(null);
-  const [giftJoyPlayed, setGiftJoyPlayed] = useState(false);
 
   useEffect(() => {
     setIndicatorTransformOrigin();
@@ -50,9 +46,9 @@ export default function SpinWheel() {
   };
 
   const spinWheel = () => {
-    if (!spinning && assets.ticket > 0) {
+    if (!spinning && user.assets.find((asset) => asset.type === "ticket")?.amount > 0) {
       setSpinning(true);
-      updateAsset("ticket", -1);
+
       const newSpinDegree = constants.wheel.baseSpinDegree + constants.wheel.additionalSpin * constants.wheel.spinMultiplier;
       animateWheel(newSpinDegree);
       animateIndicator();
@@ -100,17 +96,20 @@ export default function SpinWheel() {
   };
 
   const handleGiftClaimed = () => {
-    console.log("Gift claimed!");
-    setShowSpinModal(false);
-    setSelectedMission(MissionId.OpenGiftBox);
-    updateAsset("gift", 1);
+    useQuestStore
+      .getState()
+      .compeleteQuest(2)
+      .then(() => {
+        setShowSpinModal(false);
+        setSelectedMission(MissionId.OpenGiftBox);
+      });
   };
 
   const handleClose = () => {
     setShowSpinModal(false);
   };
 
-  if (!showSpinModal) return null;
+  if (!showSpinModal || !user) return null;
 
   return (
     <>
@@ -143,14 +142,16 @@ export default function SpinWheel() {
             <button
               className={`mt-4 scale-110 transition-all hover:scale-125 px-10 py-2 border-2 border-[#3020a6] bg-[#5e30d4] text-white rounded hover:bg-blue-600 ${
                 spinning && "opacity-90 disabled pointer-events-none"
-              } ${assets.ticket <= 0 && "disabled pointer-events-none opacity-80"}`}
+              } ${user.assets.find((asset) => asset.type === "ticket")?.amount <= 0 && "disabled pointer-events-none opacity-80"}`}
               onClick={spinWheel}
               disabled={spinning}
             >
-              {spinning ? "Spinning..." : assets.ticket > 0 ? "Spin Wheel" : "not enough ticket"}
+              {spinning ? "Spinning..." : user.assets.find((asset) => asset.type === "ticket")?.amount > 0 ? "Spin Wheel" : "not enough ticket"}
             </button>
           </section>
-          <div className="absolute px-2 py-1 text-sm bottom-5 right-5 bg-black-950 rounded text-white">Your tickets : {assets.ticket}</div>
+          <div className="absolute px-2 py-1 text-sm bottom-5 right-5 bg-black-950 rounded text-white">
+            Your tickets : {user.assets.find((asset) => asset.type === "ticket")?.amount}
+          </div>
         </div>
       </Component>
     </>

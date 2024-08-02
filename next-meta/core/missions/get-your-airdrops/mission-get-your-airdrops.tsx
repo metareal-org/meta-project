@@ -9,9 +9,8 @@ import useMapStore from "@/store/engine-store/useMapStore";
 import { CHESTMAN_LOCATION } from "@/core/constants";
 import useDrawerStore from "@/store/gui-store/useDrawerStore";
 import useJoyrideStore from "@/store/gui-store/useJoyrideStore";
-import { useAssetStore } from "@/store/player-store/useAssetStore"; 
-import { updateUserMission } from "@/lib/api/user";
 import { useUserStore } from "@/store/player-store/useUserStore";
+import { useQuestStore } from "@/store/useQuestStore";
 
 export default function MissionGetYourAirdrops() {
   const { selectedMission } = useMissionStore();
@@ -19,10 +18,9 @@ export default function MissionGetYourAirdrops() {
   const { mapbox, setIsFlying } = useMapStore();
   const { addStep } = useJoyrideStore();
   const { activeDrawer } = useDrawerStore();
-  const { updateAsset } = useAssetStore();
   const [ticketJoyPlayed, setTicketJoyPlayed] = useState(false);
-  const {user} = useUserStore();
-  
+  const { user, updateUserMission } = useUserStore();
+
   useEffect(() => {
     if (selectedMission?.id !== MissionId.GetYourAirdrops || !mapbox) return;
     updateUserMission(MissionId.GetYourAirdrops).then(() => {
@@ -69,13 +67,16 @@ export default function MissionGetYourAirdrops() {
         {
           label: "Trade",
           onClick: () => {
-            console.log("Trade button clicked");
-            updateAsset("ticket", 1);
-            addStep({
-              target: ".inventory",
-              content: "Click on the Inventory button to open your inventory",
-              disableBeacon: true,
-            });
+            useQuestStore
+              .getState()
+              .compeleteQuest(1)
+              .then(() => {
+                addStep({
+                  target: ".inventory",
+                  content: "Click on the Inventory button to open your inventory",
+                  disableBeacon: true,
+                });
+              });
           },
         },
       ],

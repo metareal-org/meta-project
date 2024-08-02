@@ -10,26 +10,12 @@ import BuildingSellDialog from "@/components/game-interface/dialogs/building-dia
 import BuildingOfferListDialog from "@/components/game-interface/dialogs/building-dialogs/building-offer-list-dialog";
 import BuildingUpdateSellDialog from "@/components/game-interface/dialogs/building-dialogs/building-update-sell-dialog";
 import BuildingOfferDialog from "@/components/game-interface/dialogs/building-dialogs/building-offer-dialog";
-import { useEffect, useState } from "react";
-
-const BuildingImage = ({ isLoading }: { isLoading: boolean }) =>
-  isLoading ? (
-    <Skeleton className="w-full h-[160px] rounded-lg" />
-  ) : (
-    <img
-      src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
-      className="rounded-lg w-full h-[160px] object-cover"
-    />
-  );
-
-const BuildingHeader = ({ isLoading, id }: { isLoading: boolean; id?: number }) =>
-  isLoading ? <Skeleton className="h-6 mx-auto w-4/5" /> : <h3 className="text-2xl mb-2 text-center">Building {id}</h3>;
 
 const SaleStatus = ({ isLoading, isForSale, price }: { isLoading: boolean; isForSale?: boolean; price?: number | null }) =>
   isLoading ? (
     <Skeleton className="h-8 mx-auto w-2/5 my-2" />
   ) : (
-    <div className="text-center border-t  border-white/30  text-primary text-xs pt-2">
+    <div className="text-center border-t border-b  border-white/30  text-primary text-xs py-2">
       {isForSale ? `This property is available for purchase at ${price} Meta` : "This property is not for sale"}
     </div>
   );
@@ -78,6 +64,19 @@ export default function BuildingDrawer() {
   const { buildingDrawer, setDrawerState } = useDrawerStore();
 
   const isLoading = !currentLandDetails;
+
+  const BuildingImage = ({ isLoading }: { isLoading: boolean }) =>
+    isLoading ? (
+      <Skeleton className="w-full h-[160px] rounded-lg" />
+    ) : (
+      <img
+        src={currentLandDetails?.is_locked ? "/assets/images/buldings/building-locked.png" : "/assets/images/buldings/building-empty.png"}
+        className="rounded-lg w-full h-[160px] object-cover"
+      />
+    );
+
+  const BuildingHeader = ({ isLoading, id }: { isLoading: boolean; id?: number }) =>
+    isLoading ? <Skeleton className="h-6 mx-auto w-4/5" /> : <h3 className="text-2xl mb-2 text-center">Building {id} {currentLandDetails?.is_locked ? "🔒" : ""}</h3>;
 
   if (!buildingDrawer || selectedLandId === null) return null;
 

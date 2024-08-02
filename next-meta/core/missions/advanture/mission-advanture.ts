@@ -4,7 +4,6 @@ import { cache, useEffect } from "react";
 import { MissionId } from "../mission-config";
 import loadUnit from "@/core/loaders/markers-load/unit-load";
 import useUnitStore from "@/store/world-store/useUnitStore";
-import { updateUserMission } from "@/lib/api/user";
 import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 
@@ -12,7 +11,8 @@ export default function MissionAdvanture() {
   const { mapbox } = useMapStore();
   const { selectedMission } = useMissionStore();
   const { playerOffers } = usePlayerOffersStore();
-  const { fetchUserData } = useUserStore();
+  const { fetchUser } = useUserStore();
+  const { updateUserMission } = useUserStore();
   useEffect(() => {
     if (selectedMission?.id !== MissionId.Advanture || !mapbox) return;
     updateUserMission(MissionId.Advanture)
@@ -29,7 +29,7 @@ export default function MissionAdvanture() {
   }, [selectedMission, mapbox]);
 
   useEffect(() => {
-    fetchUserData();
+    fetchUser();
   }, [playerOffers]);
 
   return null;

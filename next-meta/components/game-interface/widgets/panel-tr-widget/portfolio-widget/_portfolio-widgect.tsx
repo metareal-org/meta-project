@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import numeral from "numeral";
 import { HandCoins, PiggyBank } from "lucide-react";
@@ -60,10 +60,42 @@ const ToggleIndicator: React.FC<ToggleIndicatorProps> = ({ showLocked, setShowLo
   </Button>
 );
 
+
+
 const PortfolioWidget: React.FC = () => {
   const [showLocked, setShowLocked] = useState(false);
-  const { metaAmount, cpAmount, user } = useUserStore();
+  const { user } = useUserStore();
   const { openAlert } = useAlertStore();
+  const [metaAmount, setMetaAmount] = useState({ free: 0, locked: 0, total: 0 });
+  const [cpAmount, setCpAmount] = useState({ free: 0, locked: 0, total: 0 });
+
+  useEffect(() => {
+    if (!user || !user.assets) {
+      console.log("User or user assets not available", user);
+      return;
+    }
+
+    const metaAsset = user.assets.find((asset) => asset.type === "meta");
+    const metaLockedAsset = user.assets.find((asset) => asset.type === "meta_locked");
+    const cpAsset = user.assets.find((asset) => asset.type === "cp");
+    const cpLockedAsset = user.assets.find((asset) => asset.type === "cp_locked");
+
+    const newMetaAmount = {
+      free: metaAsset ? metaAsset.amount : 0,
+      locked: metaLockedAsset ? metaLockedAsset.amount : 0,
+      total: (metaAsset ? metaAsset.amount : 0) + (metaLockedAsset ? metaLockedAsset.amount : 0),
+    };
+
+    const newCpAmount = {
+      free: cpAsset ? cpAsset.amount : 0,
+      locked: cpLockedAsset ? cpLockedAsset.amount : 0,
+      total: (cpAsset ? cpAsset.amount : 0) + (cpLockedAsset ? cpLockedAsset.amount : 0),
+    };
+
+    setMetaAmount(newMetaAmount);
+    setCpAmount(newCpAmount);
+
+  }, [user]);
 
   const handleWithdraw = (amount: string) => {
     console.log("Withdrawal successful", amount);
@@ -73,7 +105,7 @@ const PortfolioWidget: React.FC = () => {
   const showWithdrawAlert = () => {
     if (!user) return;
     openAlert({
-      picture:"/assets/images/tokens/withdraw_alert.jpg",
+      picture: "/assets/images/tokens/withdraw_alert.jpg",
       closable: true,
       id: "metaWithdraw",
       title: "Withdraw Meta",

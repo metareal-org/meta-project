@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AuctionBid extends Model
 {
+    protected $fillable = ['auction_id', 'user_id', 'amount'];
 
     public function auction(): BelongsTo
     {

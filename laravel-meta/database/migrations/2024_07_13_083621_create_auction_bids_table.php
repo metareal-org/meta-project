@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('auction_bids', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('auction_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('auction_id');
+            $table->foreignId('user_id');
             $table->decimal('amount', 20, 2);
             $table->timestamps();
         });

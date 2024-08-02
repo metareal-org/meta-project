@@ -1,6 +1,6 @@
 // store/auction-store/useAuctionStore.ts
 import { create } from "zustand";
-import { placeBid, fetchBidsForAuction } from "@/lib/api/auction";
+import { placeBid, fetchBidsForAuction, cancelAuction } from "@/lib/api/auction";
 import { AxiosResponse } from "axios";
 
 export interface Bid {
@@ -38,6 +38,7 @@ interface AuctionStore {
   error: string | null;
   placeBid: (auctionId: number, bidAmount: number) => Promise<AxiosResponse>;
   fetchBids: (auctionId: number) => Promise<void>;
+  cancelAuction: (auctionId: number) => Promise<AxiosResponse>;
 }
 
 export const useAuctionStore = create<AuctionStore>((set) => ({
@@ -46,20 +47,22 @@ export const useAuctionStore = create<AuctionStore>((set) => ({
   bids: [],
   isLoading: false,
   error: null,
+
   placeBid: async (auctionId: number, bidAmount: number) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await placeBid(auctionId, bidAmount);
+      const response = await placeBid(auctionId, bidAmount);
       set((state) => ({
-        activeAuction: state.activeAuction ? { ...state.activeAuction, bids: [...state.activeAuction.bids, data.bid] } : null,
+        activeAuction: state.activeAuction ? { ...state.activeAuction, bids: [...state.activeAuction.bids, response.data.bid] } : null,
         isLoading: false,
       }));
-      return data;
+      return response;
     } catch (error) {
       set({ error: "Failed to place bid. Please try again.", isLoading: false });
       return Promise.reject(error);
     }
   },
+
   fetchBids: async (auctionId: number) => {
     set({ isLoading: true, error: null });
     try {
@@ -68,6 +71,24 @@ export const useAuctionStore = create<AuctionStore>((set) => ({
     } catch (error) {
       console.error("Error fetching bids:", error);
       set({ error: "Failed to load bids. Please try again.", isLoading: false });
+    }
+  },
+
+  cancelAuction: async (auctionId: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await cancelAuction(auctionId);
+      set((state) => ({
+        auctions: state.auctions.map(auction => 
+          auction.id === auctionId ? { ...auction, status: 'canceled' } : auction
+        ),
+        activeAuction: state.activeAuction?.id === auctionId ? { ...state.activeAuction, status: 'canceled' } : state.activeAuction,
+        isLoading: false,
+      }));
+      return response;
+    } catch (error) {
+      set({ error: "Failed to cancel auction. Please try again.", isLoading: false });
+      return Promise.reject(error);
     }
   },
 }));

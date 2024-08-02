@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Title } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
-import { fetchUserLands } from "@/lib/api/land";
+import { fetchAllLands, fetchUserLands } from "@/lib/api/land";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -38,7 +38,8 @@ export default function MylandsDrawer() {
   useEffect(() => {
     if (mylandsDrawer) {
       setIsLoading(true);
-      fetchUserLands().then((fetchedLands) => {
+      // fetchUserLands().then((fetchedLands) => { main
+      fetchAllLands().then((fetchedLands) => { //test
         console.log(fetchedLands);
         setLands(fetchedLands);
         setIsLoading(false);
@@ -151,7 +152,7 @@ export default function MylandsDrawer() {
                   <div className="flex items-center">
                     <div className="w-16 h-16 mr-3 relative">
                       <img
-                        src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
+                        src="/assets/images/buldings/building-empty.png"
                         alt="Land"
                         className="w-full h-full object-cover rounded-md shadow-sm"
                       />

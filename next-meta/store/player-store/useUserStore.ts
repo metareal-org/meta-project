@@ -1,185 +1,82 @@
-// store/player-store/useUserStore.ts
-
 import { create } from "zustand";
 import { DEBUG } from "../../core/constants";
-import { fetchUser } from "@/lib/api/user";
-import { AssetData } from "@/lib/api/asset";
+import { UserAsset } from "@/lib/api/asset";
+import { apiFetchOutfitGender, apiFetchUser, apiUpdateUser } from "@/lib/api/user";
 
 export interface User {
-  assets: AssetData;
   id: number;
   address: string;
+  nickname: string;
   avatar_url: string;
   coordinates: string;
-  cp_amount_free: number;
-  cp_amount_locked: number;
-  created_at: string;
-  current_mission: number;
-  meta_amount_free: number;
-  meta_amount_locked: number;
-  nickname: string;
-  remember_token: null | string;
-  updated_at: string;
+  current_mission: number | null;
+  referrer_id: number | null;
+  referral_code: string;
+  assets: UserAsset[];
 }
 
 export interface UserState {
   user: User | null;
-  nickname: string;
-  setNickname: (nickname: string) => void;
-  setUser: (user: User) => void;
-  cpAmount: {
-    free: number;
-    locked: number;
-    total: number;
-  };
-  metaAmount: {
-    free: number;
-    locked: number;
-    total: number;
-  };
-  addCp: (amount: number) => void;
-  removeCp: (amount: number) => void;
-  lockCp: (amount: number) => void;
-  unlockCp: (amount: number) => void;
-  addMeta: (amount: number) => void;
-  removeMeta: (amount: number) => void;
-  lockMeta: (amount: number) => void;
-  unlockMeta: (amount: number) => void;
-  setCpExact: (amount: number) => void;
-  setMetaExact: (amount: number) => void;
-  fetchUserData: () => Promise<void>;
+  outfitGender: string | null;
+  fetchUser: () => Promise<User | null>;
+  fetchOutfitGender: (avatarUrl: string) => Promise<string>;
+  updateUserNickname: (nickname: string) => Promise<void>;
+  updateUserMission: (missionId: number) => Promise<void>;
+  updateUserAvatar: (avatarUrl: string) => Promise<void>;
 }
 
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>((set, get) => ({
   user: null,
-  nickname: "",
-  setNickname: (nickname) => set({ nickname }),
-  setUser: (user) => set({ user }),
-  cpAmount: {
-    free: 0,
-    locked: 0,
-    total: 0,
-  },
-  metaAmount: {
-    free: 0,
-    locked: 0,
-    total: 0,
-  },
-  addCp: (amount) =>
-    set((state) => ({
-      cpAmount: {
-        ...state.cpAmount,
-        free: state.cpAmount.free + amount,
-        total: state.cpAmount.total + amount,
-      },
-    })),
-  removeCp: (amount) =>
-    set((state) => ({
-      cpAmount: {
-        ...state.cpAmount,
-        free: Math.max(0, state.cpAmount.free - amount),
-        total: Math.max(0, state.cpAmount.total - amount),
-      },
-    })),
-  lockCp: (amount) =>
-    set((state) => {
-      const lockableAmount = Math.min(amount, state.cpAmount.free);
-      return {
-        cpAmount: {
-          free: state.cpAmount.free - lockableAmount,
-          locked: state.cpAmount.locked + lockableAmount,
-          total: state.cpAmount.total,
-        },
-      };
-    }),
-  unlockCp: (amount) =>
-    set((state) => {
-      const unlockableAmount = Math.min(amount, state.cpAmount.locked);
-      return {
-        cpAmount: {
-          free: state.cpAmount.free + unlockableAmount,
-          locked: state.cpAmount.locked - unlockableAmount,
-          total: state.cpAmount.total,
-        },
-      };
-    }),
-  addMeta: (amount) =>
-    set((state) => ({
-      metaAmount: {
-        ...state.metaAmount,
-        free: state.metaAmount.free + amount,
-        total: state.metaAmount.total + amount,
-      },
-    })),
-  removeMeta: (amount) =>
-    set((state) => ({
-      metaAmount: {
-        ...state.metaAmount,
-        free: Math.max(0, state.metaAmount.free - amount),
-        total: Math.max(0, state.metaAmount.total - amount),
-      },
-    })),
-  lockMeta: (amount) =>
-    set((state) => {
-      const lockableAmount = Math.min(amount, state.metaAmount.free);
-      return {
-        metaAmount: {
-          free: state.metaAmount.free - lockableAmount,
-          locked: state.metaAmount.locked + lockableAmount,
-          total: state.metaAmount.total,
-        },
-      };
-    }),
-  unlockMeta: (amount) =>
-    set((state) => {
-      const unlockableAmount = Math.min(amount, state.metaAmount.locked);
-      return {
-        metaAmount: {
-          free: state.metaAmount.free + unlockableAmount,
-          locked: state.metaAmount.locked - unlockableAmount,
-          total: state.metaAmount.total,
-        },
-      };
-    }),
-  setCpExact: (amount: number) =>
-    set((state) => ({
-      cpAmount: {
-        free: amount,
-        locked: state.cpAmount.locked,
-        total: amount + state.cpAmount.locked,
-      },
-    })),
-  setMetaExact: (amount: number) =>
-    set((state) => {
-      DEBUG && console.log("Setting meta amount in store:", amount);
-      return {
-        metaAmount: {
-          free: amount,
-          locked: state.metaAmount.locked,
-          total: amount + state.metaAmount.locked,
-        },
-      };
-    }),
-  fetchUserData: async () => {
+  outfitGender: null,
+
+  fetchUser: async () => {
     try {
-      const userData: any = await fetchUser();
-      DEBUG && console.log(userData);
-      set((state) => ({
-        user: userData.user,
-        cpAmount: {
-          free: userData.user.cp_amount_free,
-          locked: userData.user.cp_amount_locked,
-          total: userData.user.cp_amount_free + userData.user.cp_amount_locked,
-        },
-        metaAmount: {
-          free: userData.user.meta_amount_free,
-          locked: userData.user.meta_amount_locked,
-          total: userData.user.meta_amount_free + userData.user.meta_amount_locked,
-        },
-      }));
+      const response = await apiFetchUser();
+      set({ user: response || null });
+      return response || null;
     } catch (error) {
-      DEBUG && console.error("Failed to fetch user balance:", error);
+      DEBUG && console.error("Failed to fetch user:", error);
+      return null;
+    }
+  },
+
+  fetchOutfitGender: async (avatarUrl: string): Promise<string> => {
+    try {
+      const gender = await apiFetchOutfitGender(avatarUrl);
+      set({ outfitGender: gender });
+      console.log(gender);
+      return gender;
+    } catch (error) {
+      DEBUG && console.error("Failed to fetch outfit gender:", error);
+      set({ outfitGender: "" });
+      return "";
+    }
+  },
+
+  updateUserNickname: async (nickname: string) => {
+    try {
+      await apiUpdateUser({ nickname });
+      await get().fetchUser();
+    } catch (error) {
+      DEBUG && console.error("Failed to update user nickname:", error);
+    }
+  },
+
+  updateUserMission: async (missionId: number) => {
+    try {
+      await apiUpdateUser({ current_mission: missionId });
+      await get().fetchUser();
+    } catch (error) {
+      DEBUG && console.error("Failed to update user mission:", error);
+    }
+  },
+
+  updateUserAvatar: async (avatarUrl: string) => {
+    try {
+      await apiUpdateUser({ avatar_url: avatarUrl });
+      await get().fetchUser();
+    } catch (error) {
+      DEBUG && console.error("Failed to update user avatar:", error);
     }
   },
 }));
-

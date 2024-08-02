@@ -1,3 +1,4 @@
+// lib/api/auction.ts
 import axiosInstance from "../axios-instance";
 import { SERVER } from "@/core/constants";
 
@@ -6,13 +7,17 @@ export const createAuction = async (landId: number, minimumPrice: number, durati
   return response.data;
 };
 
-
 export const placeBid = async (auctionId: number, amount: number) => {
   const response = await axiosInstance.post(`/auctions/${auctionId}/bid`, { amount: amount });
-  return response.data;
+  return response;
 };
 
 export const fetchBidsForAuction = async (auctionId: number) => {
   const response = await axiosInstance.get(`${SERVER}/auctions/${auctionId}/bids`);
   return response.data;
+};
+
+export const cancelAuction = async (auctionId: number) => {
+  const response = await axiosInstance.post(`/auctions/${auctionId}/cancel`);
+  return response;
 };

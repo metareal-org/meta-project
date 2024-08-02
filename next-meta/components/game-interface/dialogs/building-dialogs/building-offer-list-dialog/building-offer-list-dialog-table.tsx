@@ -1,111 +1,157 @@
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { ColumnDef, SortingState, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Loader2 } from "lucide-react";
 import { Flex } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import moment from "moment";
-import { useState } from "react";
 import useLandStore from "@/store/world-store/useLandStore";
 import numeral from "numeral";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { acceptOffer } from "@/lib/api/offer";
+import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
 
 export type Offer = {
-  id: string;
-  offer: number;
-  user: string;
-  date: number;
-  is_accepted: number;
+  id: number;
+  user_id: number;
+  price: number;
+  created_at: string;
+  user: {
+    id: number;
+    nickname: string;
+    assets: {
+      id: number;
+      user_id: number;
+      gift: number;
+      ticket: number;
+      wood: number;
+      stone: number;
+      sand: number;
+      gold: number;
+      created_at: string;
+      updated_at: string;
+    };
+  };
 };
 
 interface BuildingOfferListTableProps {
-  data: Offer[];
+  data: Offer[][];
   sortable?: boolean;
   isLoading: boolean;
 }
 
 export default function BuildingOfferListTable({ data, sortable = true, isLoading }: BuildingOfferListTableProps) {
   const { currentLandDetails, fetchLandDetails } = useLandStore();
-  const { fetchUserData } = useUserStore();
-  const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
+  const { acceptOffer } = usePlayerOffersStore();
+  const { user, fetchUser } = useUserStore();
+  const [processingOfferId, setProcessingOfferId] = useState<number | null>(null);
 
-  const columns: ColumnDef<Offer>[] = [
-    {
-      accessorKey: "user",
-      header: ({ column }) => {
-        return sortable ? (
-          <Button variant="ghost" className="!px-0 !pl-3 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Nickname
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ) : (
-          <div>Nickname</div>
-        );
-      },
-      cell: ({ row }) => <div className="capitalize !pl-3">{row.getValue("user")}</div>,
+  // Flatten the nested array structure
+  const flattenedData = useMemo(() => data.flat(), [data]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("Current user:", user);
+    console.log("All offers:", flattenedData);
+  }, [user, flattenedData]);
+
+  const handleAcceptOffer = useCallback(
+    async (offerId: number) => {
+      setProcessingOfferId(offerId);
+      try {
+        await acceptOffer(offerId);
+        console.log("Offer accepted successfully");
+        await fetchUser();
+        if (currentLandDetails) {
+          await fetchLandDetails(currentLandDetails.id);
+        }
+      } catch (error) {
+        console.error("Error accepting offer:", error);
+        console.log("Failed to accept offer. Please try again.");
+      } finally {
+        setProcessingOfferId(null);
+      }
     },
-    {
-      accessorKey: "date",
-      header: ({ column }) => {
-        return sortable ? (
-          <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Date
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ) : (
-          <div>Date</div>
-        );
-      },
-      cell: ({ row }) => {
-        const date = row.getValue("date");
-        const formattedDate = moment(date as number).fromNow();
-        return <div className="lowercase">{formattedDate}</div>;
-      },
-    },
-    {
-      accessorKey: "offer",
-      header: ({ column }) => {
-        return sortable ? (
-          <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Offer
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ) : (
-          <div>Offer</div>
-        );
-      },
-      cell: ({ row }) => {
-        const offer = parseFloat(row.getValue("offer"));
-        const formatted = numeral(offer).format("$0,0");
-        return <div className="font-medium">{formatted}</div>;
-      },
-    },
-    {
-      accessorKey: "id",
-      header: () => (sortable ? <div className="flex justify-center">Action</div> : null),
-      cell: ({ row }) => {
-        const offerId = row.getValue("id") as string;
-        return sortable ? (
-          <Flex className="gap-2 items-center justify-center">
-            <Button size={"sm"} onClick={() => handleAcceptOffer(offerId)} disabled={processingOfferId === offerId}>
-              {processingOfferId === offerId ? "Processing..." : "Accept"}
+    [acceptOffer, fetchUser, currentLandDetails, fetchLandDetails]
+  );
+
+  const columns: ColumnDef<Offer>[] = useMemo(
+    () => [
+      {
+        accessorKey: "user",
+        header: ({ column }) => {
+          return sortable ? (
+            <Button variant="ghost" className="!px-0 !pl-3 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Nickname
+              <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
-          </Flex>
-        ) : null;
+          ) : (
+            <div>Nickname</div>
+          );
+        },
+        cell: ({ row }) => <div className="capitalize !pl-3">{row.original.user.nickname}</div>,
       },
-    },
-  ];
+      {
+        accessorKey: "created_at",
+        header: ({ column }) => {
+          return sortable ? (
+            <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Date
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <div>Date</div>
+          );
+        },
+        cell: ({ row }) => {
+          const date = row.original.created_at;
+          const formattedDate = moment(date).fromNow();
+          return <div className="lowercase">{formattedDate}</div>;
+        },
+      },
+      {
+        accessorKey: "price",
+        header: ({ column }) => {
+          return sortable ? (
+            <Button variant="ghost" className="!px-0 hover:!bg-transparent" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+              Offer
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <div>Offer</div>
+          );
+        },
+        cell: ({ row }) => {
+          const offer = row.original.price;
+          const formatted = numeral(offer).format("$0,0");
+          return <div className="font-medium">{formatted}</div>;
+        },
+      },
+      {
+        accessorKey: "id",
+        header: () => (sortable ? <div className="flex justify-center">Action</div> : null),
+        cell: ({ row }) => {
+          const offerId = row.original.id;
+          return sortable ? (
+            <Flex className="gap-2 items-center justify-center">
+              <Button size={"sm"} onClick={() => handleAcceptOffer(offerId)} disabled={processingOfferId === offerId}>
+                {processingOfferId === offerId ? "Processing..." : "Accept"}
+              </Button>
+            </Flex>
+          ) : null;
+        },
+      },
+    ],
+    [sortable, processingOfferId, handleAcceptOffer]
+  );
 
-  const [sorting, setSorting] = useState<SortingState>([
-    {
-      id: "offer",
-      desc: true,
-    },
-  ]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "price", desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
 
-  // Filter out accepted offers
-  const filteredData = data.filter(offer => offer.is_accepted !== 1);
+  const filteredData = useMemo(() => {
+    if (!user) return flattenedData;
+
+    return flattenedData.filter((offer) => offer.user_id !== user.id);
+  }, [flattenedData, user]);
 
   const table = useReactTable({
     data: filteredData,
@@ -115,29 +161,16 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      rowSelection,
-    },
+    state: { sorting, rowSelection },
   });
 
-  const handleAcceptOffer = async (offerId: string) => {
-    setProcessingOfferId(offerId);
-    try {
-      await acceptOffer(Number(offerId));
-      console.log("Offer accepted successfully");
-      fetchUserData();
-      if (currentLandDetails) {
-        await fetchLandDetails(currentLandDetails.id);
-      }
-      // You might want to close the dialog or refresh the offer list here
-    } catch (error) {
-      console.error("Error accepting offer:", error);
-      console.log("Failed to accept offer. Please try again.");
-    } finally {
-      setProcessingOfferId(null);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-32">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -146,29 +179,14 @@ export default function BuildingOfferListTable({ data, sortable = true, isLoadin
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>;
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <div className="flex justify-center items-center h-32">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : filteredData.length > 0 ? (
+            {filteredData.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (

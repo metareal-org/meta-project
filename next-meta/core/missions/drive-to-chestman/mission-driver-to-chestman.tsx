@@ -11,11 +11,12 @@ import useChestmanStore from "@/store/objects-store/useChestmanStore";
 import loadCar from "@/core/loaders/models-load/car-load";
 import useCarLogic from "@/hooks/useCarLogic";
 import loadChestman from "@/core/loaders/models-load/chestman-load";
-import { updateUserMission } from "@/lib/api/user";
+
 import useGemStore from "@/store/objects-store/useGemsStore";
 import useAlertStore from "@/store/gui-store/useAlertStore";
 import { Grid } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
+import { useUserStore } from "@/store/player-store/useUserStore";
 const DEBUG = false;
 const addRoute = async (minimap: mapboxgl.Map | undefined, carModel: { coordinates: number[] } | undefined) => {
   if (!minimap || !carModel) return;
@@ -73,6 +74,7 @@ export default function MissionDriverToChestman() {
   const { isReachedToChestman, checkNearbyChestman, setIsReachedToChestman } = useChestmanStore();
   const { areGemsLoaded, setAllGemsVisibility, gemModels } = useGemStore.getState();
   const { openAlert } = useAlertStore();
+  const { updateUserMission } = useUserStore();
   useEffect(() => {
     loadChestman();
 

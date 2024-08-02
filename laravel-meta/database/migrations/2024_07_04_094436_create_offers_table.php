@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('offers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('land_id')->constrained();
-            $table->foreignId('user_id')->constrained();
+            $table->foreignId('land_id');
+            $table->foreignId('user_id');
             $table->integer('price');
             $table->boolean('is_accepted')->default(false);
             $table->timestamps();

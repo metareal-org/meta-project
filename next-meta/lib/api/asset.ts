@@ -1,13 +1,24 @@
-// lib/api/asset.ts
 import axiosInstance from "../axios-instance";
 
+export interface UserAsset {
+  type: string;
+  amount: number;
+}
+
+
 export interface AssetData {
-  gift: number;
-  ticket: number;
+  cp: number;
+  cp_locked: number;
+  meta: number;
+  meta_locked: number;
+  iron: number;
   wood: number;
-  stone: number;
   sand: number;
   gold: number;
+  chest_silver: number;
+  chest_gold: number;
+  chest_diamond: number;
+  lottery_scratch: number;
 }
 
 interface AssetUpdateResponse {
@@ -15,15 +26,16 @@ interface AssetUpdateResponse {
   assets: AssetData;
 }
 
-export const updateUserAssets = async (
-  assetType: keyof AssetData, 
-  amount: number, 
-  action: 'increase' | 'decrease'
-): Promise<AssetUpdateResponse> => {
+export const apiUpdateUserAssets = async (assetType: keyof AssetData, amount: number, action: "increase" | "decrease"): Promise<AssetUpdateResponse> => {
   const response = await axiosInstance.post<AssetUpdateResponse>("/assets/update", {
     asset_type: assetType,
     amount: amount,
-    action: action
+    action: action,
   });
+  return response.data;
+};
+
+export const apiFetchUserAssets = async (): Promise<AssetData> => {
+  const response = await axiosInstance.get<AssetData>("/assets");
   return response.data;
 };

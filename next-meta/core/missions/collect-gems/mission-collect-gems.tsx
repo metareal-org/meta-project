@@ -14,15 +14,15 @@ import useAvatarGemsLogic from "@/hooks/useAvatarGemsLogics";
 import useAvatarFobLogic from "@/hooks/useAvatarFobLogics";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { AZADI_TOWER_COORDINATES } from "@/core/constants";
-import axiosInstance from "@/lib/axios-instance";
 import { Separator } from "@/components/ui/separator";
 import { Grid } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
-import { updateUserMission } from "@/lib/api/user";
+import { useUserStore } from "@/store/player-store/useUserStore";
 export default function MissionCollectGems() {
   const { setSelectedMission, selectedMission } = useMissionStore();
   const { gemPoints } = useGemStore();
   const { mapbox, stopSpinGlobe } = useMapStore();
+  const { updateUserMission } = useUserStore.getState();
   const { fobModel, isFobNearby } = useFobStore();
   const { openAlert } = useAlertStore();
   const { isAvatarLoaded } = useAvatarStore();

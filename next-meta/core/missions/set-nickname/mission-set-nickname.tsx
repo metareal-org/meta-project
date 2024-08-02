@@ -10,13 +10,13 @@ import { Grid } from "@/components/ui/tags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { updateUserNickname, applyReferralCode, updateCpAmount } from "@/lib/api/user";
+import {} from "@/lib/api/user";
 
 export default function MissionSetNickname() {
-  const { addCp } = useUserStore.getState();
+  const { updateUserNickname, applyReferralCode, updateCpAmount } = useUserStore.getState();
   const { mapbox, setIsFlying } = useMapStore.getState();
   const { selectedMission, setSelectedMission } = useMissionStore.getState();
-  const { setNickname, nickname } = useUserStore.getState();
+
   const { openAlert, closeAlert } = useAlertStore.getState();
   const [referralError, setReferralError] = useState("");
 
@@ -48,7 +48,6 @@ export default function MissionSetNickname() {
           onClick: () => {
             updateCpAmount("add", 500)
               .then(() => {
-                addCp(500);
                 openCharacterDesignAlert();
               })
               .catch((error) => {
@@ -71,14 +70,14 @@ export default function MissionSetNickname() {
             setReferralError("");
             updateUserNickname(values.username)
               .then(() => {
-                setNickname(values.username);
+                updateUserNickname(values.username);
                 if (values.referralCode) {
                   return applyReferralCode(values.referralCode);
                 }
               })
-              .then((response) => {
-                console.log(response);
-                if (response && response.referralApplied) {
+              .then((response: any) => {
+                console.log("response", response);
+                if (response && response.status == "success") {
                   showReferralRewardAlert();
                 } else {
                   openCharacterDesignAlert();

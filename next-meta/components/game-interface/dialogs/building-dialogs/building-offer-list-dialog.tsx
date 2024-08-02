@@ -4,9 +4,8 @@ import useDialogStore from "@/store/gui-store/useDialogStore";
 import BuildingOfferListTable from "./building-offer-list-dialog/building-offer-list-dialog-table";
 import useLandStore from "@/store/world-store/useLandStore";
 import { useEffect, useState } from "react";
-import { fetchOffers } from "@/lib/api/offer";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { acceptOffer } from "@/lib/api/offer";
+import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
 
 export default function BuildingOfferListDialog() {
   const { buildingOfferListDialog, setDialogState } = useDialogStore();
@@ -15,7 +14,7 @@ export default function BuildingOfferListDialog() {
   const [highest_offer, sethighest_offer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useUserStore();
-
+  const { fetchOffers } = usePlayerOffersStore();
   const fetchOffersData = async () => {
     if (currentLandDetails && buildingOfferListDialog) {
       setIsLoading(true);

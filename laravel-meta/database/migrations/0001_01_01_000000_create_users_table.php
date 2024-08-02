@@ -12,12 +12,10 @@ return new class extends Migration
             $table->string('address')->unique();
             $table->string('nickname')->nullable();
             $table->string('avatar_url')->nullable();
-            $table->integer('cp_amount_free')->default(0);
-            $table->integer('cp_amount_locked')->default(0);
-            $table->integer('meta_amount_free')->default(0);
-            $table->integer('meta_amount_locked')->default(0);
             $table->json('coordinates')->nullable();
             $table->integer('current_mission')->default(0);
+            $table->unsignedBigInteger('referrer_id')->nullable();
+            $table->string('referral_code')->unique()->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

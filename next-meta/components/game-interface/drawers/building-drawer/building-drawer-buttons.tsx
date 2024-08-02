@@ -4,7 +4,7 @@ import useLandStore, { Land } from "@/store/world-store/useLandStore";
 import useUnitStore from "@/store/world-store/useUnitStore";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { MouseEventHandler, ReactNode, useState, useMemo, useEffect } from "react";
-import { updateUserPosition } from "@/lib/api/user";
+import { apiUpdateUser } from "@/lib/api/user";
 
 interface BuildingButtonProps {
   icon: ReactNode;
@@ -36,11 +36,12 @@ const BuildingButtons = () => {
   const { currentLandDetails } = useLandStore();
   const { user } = useUserStore();
 
-  const { isOwner, isForSale } = useMemo(() => {
+  const { isOwner, isForSale , isLocked } = useMemo(() => {
     if (!currentLandDetails) return {};
     return {
       isOwner: currentLandDetails.owner_id === user?.id,
       isForSale: currentLandDetails.is_for_sale,
+      isLocked: currentLandDetails.is_locked
     };
   }, [currentLandDetails, user]);
 
@@ -62,7 +63,7 @@ const BuildingButtons = () => {
             console.log("Center point:", centerPoint);
             const newCoordinates: [number, number] = [centerPoint.longitude, centerPoint.latitude];
 
-            updateUserPosition(newCoordinates)
+            apiUpdateUser({ coordinates: JSON.stringify(newCoordinates) })
               .then(() => {
                 moveMarker(marker as mapboxgl.Marker, newCoordinates);
               })
@@ -73,7 +74,7 @@ const BuildingButtons = () => {
                 setIsMoveButtonDisabled(false);
               });
           } catch (error) {
-            console.error("Error parsing center point:", error);
+            console.log(error);
             setIsMoveButtonDisabled(false);
           }
         } else {
@@ -127,7 +128,7 @@ const BuildingButtons = () => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/bidding-date-5886191-4897678.png?f=webp" />,
       text: "Offer",
       onClick: () => setDialogState("buildingOfferDialog", true),
-      condition: !isOwner,
+      condition: !isOwner && !isLocked,
     },
 
     {
@@ -146,7 +147,7 @@ const BuildingButtons = () => {
       icon: <img src="https://cdn3d.iconscout.com/3d/premium/thumb/auction-6813960-5603563.png?f=webp" />,
       text: "Create Auction",
       onClick: () => setDialogState("buildingAuctionDialog", true),
-      condition: isOwner && !isForSale && !(currentLandDetails?.has_active_auction),
+      condition: isOwner && !isForSale && !currentLandDetails?.has_active_auction,
     },
   ];
 

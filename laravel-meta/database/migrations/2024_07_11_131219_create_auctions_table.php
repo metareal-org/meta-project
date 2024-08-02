@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('auctions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('land_id')->constrained('lands');
-            $table->foreignId('owner_id')->constrained('users');
+            $table->foreignId('land_id');
+            $table->foreignId('owner_id');
             $table->integer('minimum_price');
             $table->timestamp('start_time');
             $table->timestamp('end_time');

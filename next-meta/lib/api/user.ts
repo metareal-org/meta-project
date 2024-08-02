@@ -1,96 +1,48 @@
 import { DEBUG } from "@/core/constants";
 import axiosInstance from "../axios-instance";
-import axios from "axios";
 
-// Types
-type Coordinates = [number, number];
-
-type CpMetaAction = "add" | "remove" | "lock" | "unlock" | "setExact";
-
-interface UserUpdateResponse {
-  data: {
-    message: string;
-    user: UserData;
-  };
-}
-interface UserData {
+export interface User {
   id: number;
   address: string;
-  nickname: string | null;
-  avatar_url: string | null;
-  cp_amount_free: number;
-  cp_amount_locked: number;
-  meta_amount_free: number;
-  meta_amount_locked: number;
-  coordinates: Coordinates | null;
-  current_mission: number;
-  created_at: string;
-  updated_at: string;
+  nickname: string;
+  avatar_url: string;
+  coordinates: string;
+  current_mission: number | null;
+  referrer_id: number | null;
+  referral_code: string;
+  assets: any;
 }
 
-interface OutfitGenderResponse {
-  outfitGender: string;
-}
-
-// API Functions
-export const fetchUser = async (): Promise<UserData> => {
-  const response = await axiosInstance.get<UserData>("/user/show");
-  DEBUG && console.log(response);
-  return response.data;
+export const apiFetchUser = async (): Promise<User | undefined> => {
+  try {
+    const response = await axiosInstance.get("/user/show");
+    return response.data.user;
+  } catch (error) {
+    DEBUG && console.log("Error fetching user:", error);
+  }
 };
-
-export const fetchOutfitGender = async (avatarUrl: string): Promise<string> => {
-  const response = await axios.get<OutfitGenderResponse>(`${avatarUrl.replace(".glb", "").split("?")[0]}.json`);
+export const apiFetchOutfitGender = async (avatarUrl: string): Promise<string> => {
+  const response = await axiosInstance.get<{ outfitGender: string }>(`${avatarUrl.replace(".glb", "").split("?")[0]}.json`);
   return response.data.outfitGender;
 };
 
-export const updateUserPosition = async (coordinates: Coordinates): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("/user/update/", { coordinates: JSON.stringify(coordinates) });
+
+export const apiUpdateUser = async (updateData: Partial<User>): Promise<User> => {
+  const response = await axiosInstance.post("/user/update", updateData);
+  return response.data.user;
+};
+
+export const apiApplyReferralCode = async (referralCode: string): Promise<{ message: string }> => {
+  const response = await axiosInstance.post("/user/apply-referral", { referral_code: referralCode });
   return response.data;
 };
 
-export const updateCpAmount = async (action: CpMetaAction, amount: number): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("/user/update-cp-amount/", { action, amount });
+export const apiFetchReferralTree = async (): Promise<any> => {
+  const response = await axiosInstance.get("/user/referral-tree");
   return response.data;
 };
 
-export const updateMetaAmount = async (action: CpMetaAction, amount: number): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("/user/update-meta-amount/", { action, amount });
+export const apiFetchReferralCode = async (): Promise<{ referral_code: string }> => {
+  const response = await axiosInstance.get("/user/referral-code");
   return response.data;
 };
-
-export const updateUserMission = async (missionId: number): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("user/update/", {
-    current_mission: missionId,
-  });
-  return response.data;
-};
-
-export const updateUserAvatar = async (avatarUrl: string): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("user/update/", {
-    avatar_url: avatarUrl,
-  });
-  return response.data;
-};
-
-export const updateUserNickname = async (nickname: string): Promise<UserUpdateResponse> => {
-  const response = await axiosInstance.post<UserUpdateResponse>("user/update/", {
-    nickname: nickname,
-  });
-  return response.data;
-};
-
-export const applyReferralCode = async (referralCode: string) => {
-  try {
-    const response = await axiosInstance.post('user/apply-referral', { referral_code: referralCode });
-    response.data.referralApplied = true;
-    return response.data;
-  } catch (error:any) {
-    if (error.response && error.response.data && error.response.data.error) {
-      throw new Error(error);
-    } else {
-      throw new Error('An error occurred while applying the referral code');
-    }
-  }
-};
-

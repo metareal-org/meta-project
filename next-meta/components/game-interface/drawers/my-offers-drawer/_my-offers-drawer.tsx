@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { deleteOffer } from "@/lib/api/offer";
 import { useToast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
@@ -30,7 +29,7 @@ export default function MyOffersDrawer() {
   const { mapbox } = useMapStore();
   const { setSelectedLandId } = useLandStore();
   const { toast } = useToast();
-  const { playerOffers, isLoading, error, fetchPlayerOffers, removeOffer } = usePlayerOffersStore();
+  const { playerOffers, isLoading, error, fetchPlayerOffers, deleteOffer } = usePlayerOffersStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -53,11 +52,10 @@ export default function MyOffersDrawer() {
           zoom: 19,
           duration: 2000,
         });
-        
+
         // Set the selected land and open the building drawer
         setSelectedLandId(offer.land_id);
         setDrawerState("buildingDrawer", true);
-        
       } catch (error) {
         console.error("Error parsing center point:", error);
         toast({
@@ -71,10 +69,9 @@ export default function MyOffersDrawer() {
 
   const handleRemoveOffer = async (offerId: number) => {
     try {
-      await deleteOffer(offerId);
-      removeOffer(offerId);
+      deleteOffer(offerId);
       toast({
-        variant:"success",
+        variant: "success",
         title: "Offer removed",
         description: "Your offer has been successfully removed.",
       });
@@ -90,13 +87,15 @@ export default function MyOffersDrawer() {
 
   const filteredOffers = useMemo(() => {
     return playerOffers
-      .filter((offer) => offer.land_id.toString().toLowerCase().includes(searchTerm.toLowerCase()))
-      .filter((offer) => {
-        if (statusFilter === "all") return true;
-        if (statusFilter === "accepted") return offer.is_accepted;
-        if (statusFilter === "pending") return !offer.is_accepted;
-        return true;
-      });
+      ? playerOffers
+          .filter((offer) => offer?.land_id?.toString().toLowerCase().includes(searchTerm.toLowerCase()))
+          .filter((offer) => {
+            if (statusFilter === "all") return true;
+            if (statusFilter === "accepted") return offer?.is_accepted;
+            if (statusFilter === "pending") return !offer?.is_accepted;
+            return true;
+          })
+      : null;
   }, [playerOffers, searchTerm, statusFilter]);
 
   const OfferSkeleton = () => (
@@ -159,16 +158,16 @@ export default function MyOffersDrawer() {
             </>
           ) : error ? (
             <p className="text-red">{error}</p>
-          ) : filteredOffers.length === 0 ? (
+          ) : filteredOffers?.length === 0 ? (
             <div className="text-sm absolute bottom-0 ">No offers found.</div>
           ) : (
-            filteredOffers.map((offer: Offer) => (
+            filteredOffers?.map((offer: Offer) => (
               <Card key={offer.id} className="hover:bg-white/10">
                 <CardContent className="p-3">
                   <div className="flex items-center">
                     <div className="w-16 h-16 mr-3 relative">
                       <img
-                        src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
+                        src="/assets/images/buldings/building-empty.png"
                         alt="Offer"
                         className="w-full h-full object-cover rounded-md shadow-sm"
                       />

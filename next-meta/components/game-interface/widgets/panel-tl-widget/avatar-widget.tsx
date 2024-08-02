@@ -5,28 +5,26 @@ import { useUserStore } from "@/store/player-store/useUserStore";
 import { ChevronDown } from "lucide-react";
 import Cookies from "js-cookie";
 import { useDisconnect } from "wagmi";
-import { fetchOutfitGender } from "@/lib/api/user";
-
 
 const Avatar = () => {
-  const { nickname } = useUserStore();
+  const { user } = useUserStore();
   const { avatarUrl } = useAvatarStore();
   const { disconnect } = useDisconnect();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [outfitGender, setOutfitGender] = useState(null);
-
+  const { fetchOutfitGender } = useUserStore();
   useEffect(() => {
-    if (avatarUrl && avatarUrl !== DEFAULT_AVATAR) {
-      fetchOutfitGender(avatarUrl)
+    if (!user) return;
+    if (user.avatar_url && user.avatar_url !== DEFAULT_AVATAR) {
+      fetchOutfitGender(user.avatar_url)
         .then((outfitGender) => setOutfitGender(outfitGender as any))
         .catch((error) => console.error("Error fetching outfit gender:", error));
     }
-  }, [avatarUrl]);
+  }, [user]);
 
-  if (!nickname || !avatarUrl) return null;
+  if (!user?.nickname || !user.avatar_url) return null;
 
-  const formattedAvatarUrl = avatarUrl.replace(".glb", ".png").split("?")[0] + "?size=600";
-
+  const formattedAvatarUrl = user.avatar_url.replace(".glb", ".png").split("?")[0] + "?size=600";
   const avatarImageStyle =
     outfitGender === "feminine" ? "absolute z-[5] size-[230px] object-cover left-0 top-[-30px]" : "absolute z-[5] size-[280px] object-cover left-0 top-[-10px]";
 
@@ -55,7 +53,7 @@ const Avatar = () => {
             <img src={formattedAvatarUrl} className={avatarImageStyle} />
           </div>
           <div className="bg-teal-fg/90 rounded-r-full -mt-1 text-sm flex items-center justify-center pl-4 pr-5 min-w-20 border-2 border-teal -ml-[14px] h-9">
-            {nickname}
+            {user.nickname}
           </div>
           <div
             onClick={() => setIsMenuOpen(!isMenuOpen)}

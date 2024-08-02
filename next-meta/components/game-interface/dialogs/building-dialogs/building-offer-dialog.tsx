@@ -5,8 +5,7 @@ import useLandStore from "@/store/world-store/useLandStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { AlertCircle } from "lucide-react";
-import { submitOffer, updateOffer, deleteOffer } from "@/lib/api/offer";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { usePlayerOffersStore } from "@/store/player-store/usePlayerOffersStore";
 
@@ -14,18 +13,13 @@ export default function BuildingOfferDialog() {
   const { buildingOfferDialog, setDialogState } = useDialogStore();
   const { currentLandDetails } = useLandStore();
   const [offerPrice, setOfferPrice] = useState("");
-  const { fetchUserData } = useUserStore();
+  const { fetchUser } = useUserStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { submitOffer, updateOffer, deleteOffer } = usePlayerOffersStore();
+  const { playerOffers, fetchPlayerOffers, updateOffer: updateStoreOffer, isLoading } = usePlayerOffersStore();
 
-  const { 
-    playerOffers, 
-    fetchPlayerOffers, 
-    updateOffer: updateStoreOffer, 
-    removeOffer: removeStoreOffer 
-  } = usePlayerOffersStore();
-
-  const user_offer = playerOffers.find(offer => offer.land_id === currentLandDetails?.id);
+  const user_offer = playerOffers.find((offer) => offer.land_id === currentLandDetails?.id);
 
   useEffect(() => {
     if (currentLandDetails && buildingOfferDialog) {
@@ -50,7 +44,8 @@ export default function BuildingOfferDialog() {
       });
       return;
     }
-    if (!offerPrice || isNaN(Number(offerPrice))) {
+    const offerPriceNumber = Number(offerPrice);
+    if (!offerPrice || isNaN(offerPriceNumber)) {
       toast({
         variant: "destructive",
         title: "Invalid offer",
@@ -61,24 +56,23 @@ export default function BuildingOfferDialog() {
     setIsSubmitting(true);
     try {
       if (user_offer) {
-        const updatedOffer = await updateOffer(user_offer.id, Number(offerPrice));
-        updateStoreOffer(user_offer.id, updatedOffer);
+        await updateOffer(user_offer.id, offerPriceNumber);
       } else {
-        const newOffer = await submitOffer(currentLandDetails.id, Number(offerPrice));
-        fetchPlayerOffers(); // Refetch all offers to include the new one
+        await submitOffer(currentLandDetails.id, offerPriceNumber);
+        fetchPlayerOffers(); 
       }
       toast({
-        variant:"success",
-        title: user_offer ? "Bid updated" : "Bid placed",
-        description: user_offer ? "Your bid has been updated successfully" : "Your bid has been placed successfully",
+        variant: "success",
+        title: user_offer ? "Offer updated" : "Offer placed",
+        description: user_offer ? "Your offer has been updated successfully" : "Your offer has been placed successfully",
       });
-      fetchUserData(); // Fetch updated balance after offer submission/update
+      fetchUser();
     } catch (error) {
       console.error("Error submitting/updating offer:", error);
       toast({
         variant: "destructive",
         title: "Submission failed",
-        description: "Failed to place/update bid. Please try again.",
+        description: "Failed to place/update offer. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -90,20 +84,20 @@ export default function BuildingOfferDialog() {
     setIsSubmitting(true);
     try {
       await deleteOffer(user_offer.id);
-      removeStoreOffer(user_offer.id);
       toast({
-        variant:"success",
-        title: "Bid canceled",
-        description: "Your bid has been canceled successfully",
+        variant: "success",
+        title: "Offer canceled",
+        description: "Your offer has been canceled successfully",
       });
       setOfferPrice("");
-      fetchUserData(); 
+      fetchUser();
+      fetchPlayerOffers(); // Refetch offers after deletion
     } catch (error) {
       console.error("Error deleting offer:", error);
       toast({
         variant: "destructive",
         title: "Withdrawal failed",
-        description: "Failed to withdraw bid. Please try again.",
+        description: "Failed to remove offer. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -115,13 +109,13 @@ export default function BuildingOfferDialog() {
       open={buildingOfferDialog}
       onOpenChange={() => setDialogState("buildingOfferDialog", false)}
       title="Submit Your Offer"
-      description="Make a competitive bid for this prime property."
+      description="Make a competitive offer for this prime property."
     >
       <div>
         <div className="rounded-lg overflow-hidden shadow-lg">
           <img
             className="w-full h-48 object-cover"
-            src="https://cdn.leonardo.ai/users/4073c2a5-0f7a-4cac-8fc5-fa427e42d881/generations/2c5a4a78-1d25-4fa6-8da7-a2696e234167/Default_empty_land_green_3d_render_game_style_0.jpg"
+            src="/assets/images/buldings/building-empty.png"
             alt="Property"
           />
         </div>
@@ -134,15 +128,20 @@ export default function BuildingOfferDialog() {
             </div>
 
             <div className="space-y-2">
-              {user_offer ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2 p-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Loading offer...</span>
+                </div>
+              ) : user_offer ? (
                 <div className="flex border-t pt-2 justify-between items-center">
-                  <span className="text-sm font-medium flex items-center gap-2">Your Current Bid:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">Your Current Offer:</span>
                   <span className="font-semibold text-blue-500">${user_offer.price.toLocaleString()}</span>
                 </div>
               ) : (
                 <div className="flex border items-center justify-center gap-2 p-2 rounded-md">
                   <AlertCircle className="w-4 h-4" />
-                  <span className="text-sm">You haven't placed a bid yet</span>
+                  <span className="text-sm">You haven't placed an offer yet</span>
                 </div>
               )}
             </div>
@@ -179,16 +178,16 @@ export default function BuildingOfferDialog() {
           Cancel
         </Button>
         {user_offer && (
-          <Button variant="destructive" onClick={handleDeleteOffer} disabled={isSubmitting}>
+          <Button variant="destructive" onClick={handleDeleteOffer} disabled={isSubmitting || isLoading}>
             Remove
           </Button>
         )}
         <Button
           onClick={handleSubmitOffer}
-          disabled={isSubmitting || !currentLandDetails}
+          disabled={isSubmitting || !currentLandDetails || isLoading}
           className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-300"
         >
-          {isSubmitting ? "Processing..." : user_offer ? "Update Bid" : "Place Bid"}
+          {isSubmitting ? "Processing..." : user_offer ? "Update Offer" : "Place Offer"}
         </Button>
       </div>
     </CustomDialog>
