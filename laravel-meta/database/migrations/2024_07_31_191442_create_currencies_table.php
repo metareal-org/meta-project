@@ -11,7 +11,7 @@ class CreateCurrenciesTable extends Migration
         Schema::create('currencies', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id');
-            $table->enum('type', ['cp', 'meta']);
+            $table->enum('type', ['cp', 'meta', 'bnb']);
             $table->unsignedBigInteger('amount')->default(0);
             $table->unsignedBigInteger('locked_amount')->default(0);
             $table->timestamps();

@@ -34,6 +34,47 @@ class LandController extends Controller
         return response()->json($lands);
     }
 
+    public function getMarketplaceLands(Request $request): JsonResponse
+    {
+        $perPage = $request->input('per_page', 20); 
+        $sortBy = $request->input('sort_by', 'fixed_price'); // Default sort by price
+        $sortOrder = $request->input('sort_order', 'asc'); // Default ascending order
+        $userLandsOnly = $request->boolean('user_lands_only', false); // New flag to filter user lands
+        $showOnlyForSale = $request->boolean('for_sale', false); // Flag to show only lands for sale
+        $search = $request->input('search', ''); // Search term
+
+        $query = Land::with('owner:id,nickname');
+
+        // Filter user lands if the flag is set
+        if ($userLandsOnly) {
+            $user = Auth::user();
+            $query->where('owner_id', $user->id);
+        }
+
+        // Filter lands for sale if the flag is set
+        if ($showOnlyForSale) {
+            $query->whereNotNull('fixed_price')->where('fixed_price', '>', 0);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('full_id', 'like', "%{$search}%")
+                    ->orWhere('region', 'like', "%{$search}%")
+                    ->orWhere('zone', 'like', "%{$search}%");
+            });
+        }
+        $query->orderBy($sortBy, $sortOrder);
+        $lands = $query->paginate($perPage);
+        return response()->json([
+            'data' => $lands->items(),
+            'current_page' => $lands->currentPage(),
+            'last_page' => $lands->lastPage(),
+            'per_page' => $lands->perPage(),
+            'total' => $lands->total(),
+        ]);
+    }
+
+
+
     public function show($id): JsonResponse
     {
         $land = Land::with([
@@ -80,7 +121,6 @@ class LandController extends Controller
             'price' => 'required|numeric|min:100|max:100000000000',
         ]);
         $land->fixed_price = $validatedData['price'];
-        $land->is_for_sale = true;
         $land->save();
         return response()->json([
             'message' => 'Price set successfully',
@@ -119,7 +159,6 @@ class LandController extends Controller
             return response()->json(['error' => 'You do not own this land'], 403);
         }
 
-        $land->is_for_sale = false;
         $land->fixed_price = null;
         $land->save();
 

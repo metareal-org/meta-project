@@ -5,6 +5,7 @@ import useMapStore from "@/store/engine-store/useMapStore";
 import { DEBUG } from "@/core/constants";
 export interface Land {
   id: number;
+  name: string;
   owner_id: number;
   is_for_sale: boolean;
   is_locked: boolean;
@@ -20,6 +21,8 @@ export interface Land {
 
 export interface LandWithDetails extends Land {
   properties: Land;
+  full_id?: string;
+  zone?: string;
   owner_nickname?: string;
   center_point: string;
   size: number;
@@ -56,6 +59,7 @@ interface Auction {
 interface LandStoreState {
   selectedLandId: number | null;
   setSelectedLandId: (landId: number | null) => void;
+
   lands: Land[];
   fetchLands: (bounds: mapboxgl.LngLatBounds, zoom: number) => Promise<Land[]>;
   currentLandDetails: LandWithDetails | null;

@@ -11,7 +11,7 @@ export default function BuildingBuyDialog() {
   const { buildingBuyDialog, setDialogState } = useDialogStore();
   const { currentLandDetails, fetchLandDetails } = useLandStore();
   const { buyLand, buyingLand } = useTransactionStore();
-  const { cpAmount } = useUserStore();
+  const { user, getAssetAmount } = useUserStore();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function BuildingBuyDialog() {
       try {
         await buyLand(currentLandDetails.id);
         toast({
-          variant:"success",
+          variant: "success",
           title: "Purchase Successful",
           description: `You have successfully purchased Land ${currentLandDetails.id}`,
         });
@@ -42,8 +42,9 @@ export default function BuildingBuyDialog() {
     }
   };
 
-  const canBuy = currentLandDetails.is_for_sale && cpAmount.free >= (currentLandDetails.fixed_price || 0);
-
+  const bnbAmount = getAssetAmount('bnb');
+  const canBuy = currentLandDetails.is_for_sale && bnbAmount >= (currentLandDetails.fixed_price || 0);
+  console.log(currentLandDetails);
   return (
     <CustomDialog
       open={buildingBuyDialog}
@@ -53,7 +54,7 @@ export default function BuildingBuyDialog() {
     >
       <div className="grid gap-4 py-4">
         <div className="rounded-lg overflow-hidden">
-          <img className="w-full h-auto" src="assets/images/drawers/building-buy.png" alt="Building" />
+          <img className="w-full h-auto" src="/assets/images/drawers/building-buy.png" alt="Building" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>

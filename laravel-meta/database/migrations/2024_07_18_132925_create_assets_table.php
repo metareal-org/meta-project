@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id');
-            $table->enum('type', ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'giftbox', 'ticket', 'chest_silver', 'chest_gold', 'chest_diamond', 'lottery_scratch']);
+            $table->enum('type', ['cp', 'cp_locked', 'meta', 'meta_locked', 'bnb', 'bnb_locked', 'iron', 'wood', 'sand', 'gold', 'giftbox', 'ticket', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box']);
             $table->unsignedBigInteger('amount');
             $table->timestamps();
         });

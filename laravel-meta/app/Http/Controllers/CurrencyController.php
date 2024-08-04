@@ -50,7 +50,7 @@ class CurrencyController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
-            'type' => 'required|in:cp,meta',
+            'type' => 'required|in:cp,meta,bnb',
             'amount' => 'required|integer|min:1',
         ]);
 

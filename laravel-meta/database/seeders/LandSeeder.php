@@ -54,7 +54,6 @@ class LandSeeder extends Seeder
                 'size' => round($areaInSquareMeters, 2), // Round to 2 decimal places
                 'owner_id' => random_int(1, 2),
                 'fixed_price' => $isForSale ? random_int(100, 1000) : null,
-                'is_for_sale' => $isForSale,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

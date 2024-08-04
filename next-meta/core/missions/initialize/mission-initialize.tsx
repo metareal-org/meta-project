@@ -3,18 +3,15 @@ import { useAccount, useSignMessage } from "wagmi";
 import { DEBUG, DEFAULT_UNIT_COORDINATE, SERVER, SIGN_MESSAGE } from "@/core/constants";
 import Cookies from "js-cookie";
 import axios from "axios";
-import axiosInstance from "@/lib/axios-instance";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import useAvatarStore from "@/store/objects-store/useAvatarStore";
 import useMissionStore from "@/store/useMissionStore";
 import { MissionId } from "../mission-config";
-import useUnitStore from "@/store/world-store/useUnitStore";
 export default function MissionInitialize() {
   const [isAuthValid, setIsAuthValid] = useState(false);
   const { address, status } = useAccount();
   const { data: signedSignature, signMessage } = useSignMessage();
   const { setSelectedMission, selectedMission } = useMissionStore();
-  const { fetchUser, updateUserMission } = useUserStore();
+  const { fetchUser } = useUserStore();
   const AUTH_ROUTE = `${SERVER}/user/authenticate/`;
   useEffect(() => {
     if (selectedMission.id != MissionId.Initialize) return;

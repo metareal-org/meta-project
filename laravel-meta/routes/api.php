@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminLandController;
+use App\Http\Controllers\AdminScratchBoxController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AuctionController;
 use App\Http\Controllers\CurrencyController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\RewardController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LandImportController;
+use App\Http\Controllers\ScratchBoxController;
 use Illuminate\Support\Facades\Route;
 
 //AUTH
@@ -32,19 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/assets/update', [AssetController::class, 'update']);
 });
 
-//LANDS
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/lands', [LandController::class, 'index']);
-    Route::get('/lands/all', [LandController::class, 'all']);
-    Route::get('/lands/user', [LandController::class, 'getUserLands']);
-    Route::get('/lands/{id}', [LandController::class, 'show']);
-    Route::post('/lands/{id}/set-price', [LandController::class, 'setPrice']);
-    Route::post('/lands/{id}/update-price', [LandController::class, 'updatePrice']);
-    Route::post('/lands/{id}/cancel-sell', [LandController::class, 'cancelSell']);
-});
 
-//LAND-AUCTIONS
-Route::post('/lands/{id}/get-active-auction', [LandController::class, 'getLandActiveAuction']);
 
 //AUCTIONS
 Route::middleware('auth:sanctum')->group(function () {
@@ -108,10 +98,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 
-// Route::middleware('auth:sanctum')->group(function () {
+//LANDS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/lands', [LandController::class, 'index']);
+    Route::get('/lands/all', [LandController::class, 'all']);
+    Route::get('/lands/user', [LandController::class, 'getUserLands']);
+    Route::get('/lands/{id}', [LandController::class, 'show']);
+    Route::post('/lands/{id}/set-price', [LandController::class, 'setPrice']);
+    Route::post('/lands/{id}/update-price', [LandController::class, 'updatePrice']);
+    Route::post('/lands/{id}/cancel-sell', [LandController::class, 'cancelSell']);
+});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/marketplace/lands', [LandController::class, 'getMarketplaceLands']);
+});
+
+//LAND-AUCTIONS
+Route::post('/lands/{id}/get-active-auction', [LandController::class, 'getLandActiveAuction']);
+
+// ADMIN-LAND-VERSION
 Route::post('/admin/lands/import', [LandImportController::class, 'import']);
 Route::get('/admin/lands/versions', [LandImportController::class, 'getVersions']);
 Route::post('/admin/lands/revert/{id}', [LandImportController::class, 'revertToVersion']);
+Route::post('/admin/lands/toggle-active/{id}', [LandImportController::class, 'toggleActive']);
 Route::get('/admin/lands/versions/{id}', [LandImportController::class, 'getVersion']);
 Route::post('/admin/lands/update-active-versions', [LandImportController::class, 'updateActiveVersions']);
 Route::delete('/admin/lands/versions/{id}', [LandImportController::class, 'deleteVersion']);
@@ -120,14 +128,32 @@ Route::post('/admin/lands/unlock/{id}', [LandImportController::class, 'unlockLan
 
 // });
 
-
+// ADMIN-LAND-MANAGE
 Route::prefix('admin/manage')->group(function () {
     Route::get('/lands', [AdminLandController::class, 'index']);
     Route::put('/lands/{id}', [AdminLandController::class, 'update']);
-    Route::delete('/lands/{id}', [AdminLandController::class, 'destroy']);
+    Route::get('/lands/all-ids', [AdminLandController::class, 'getAllLandIds']);
     Route::post('/lands/bulk-update-fixed-price', [AdminLandController::class, 'bulkUpdateFixedPrice']);
     Route::post('/lands/bulk-update-price-by-size', [AdminLandController::class, 'bulkUpdatePriceBySize']);
     Route::post('/lands/bulk-create-auctions', [AdminLandController::class, 'bulkCreateAuctions']);
     Route::post('/lands/bulk-cancel-auctions', [AdminLandController::class, 'bulkCancelAuctions']);
+    Route::post('/lands/bulk-remove-auctions', [AdminLandController::class, 'bulkRemoveAuctions']);
     Route::get('/auctions', [AdminLandController::class, 'getAuctions']);
+    Route::delete('/lands/{id}', [AdminLandController::class, 'destroy']);
+});
+
+// ADMIN-SCRATCH-BOXES
+Route::prefix('admin/scratch-boxes')->group(function () {
+    Route::get('/', [AdminScratchBoxController::class, 'index']);
+    Route::post('/', [AdminScratchBoxController::class, 'create']);
+    Route::delete('/{id}', [AdminScratchBoxController::class, 'destroy']);
+    Route::get('/all-available-land-ids', [AdminScratchBoxController::class, 'getAllAvailableLandIds']);
+    Route::get('/available-lands', [AdminScratchBoxController::class, 'getAvailableLands']);
+});
+
+// SCRATCH-BOXES
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/scratch-boxes', [ScratchBoxController::class, 'index']);
+    Route::post('/scratch-boxes/{id}/buy', [ScratchBoxController::class, 'buy']);
+    Route::post('/scratch-boxes/{id}/open', [ScratchBoxController::class, 'open']);
 });

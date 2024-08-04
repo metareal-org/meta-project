@@ -1,0 +1,60 @@
+@@ -3,7 +3,7 @@ import { useUserStore } from "@/store/player-store/useUserStore";
+ import numeral from "numeral";
+ import { HandCoins, PiggyBank } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
++import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+ import useAlertStore from "@/store/gui-store/useAlertStore";
+ import PortfolioWidgetWithdrawAlert from "./portfolio-widgect_withdraw_alert";
+ 
+@@ -70,6 +70,7 @@ const PortfolioWidget: React.FC = () => {
+   const { openAlert } = useAlertStore();
+   const [metaAmount, setMetaAmount] = useState({ free: 0, locked: 0, total: 0 });
+   const [cpAmount, setCpAmount] = useState({ free: 0, locked: 0, total: 0 });
++  const [bnbAmount, setBnbAmount] = useState({ free: 0, locked: 0, total: 0 });
+ 
+   useEffect(() => {
+     if (!user || !user.assets) {
+@@ -81,6 +82,8 @@ const PortfolioWidget: React.FC = () => {
+     const metaLockedAsset = user.assets.find((asset) => asset.type === "meta_locked");
+     const cpAsset = user.assets.find((asset) => asset.type === "cp");
+     const cpLockedAsset = user.assets.find((asset) => asset.type === "cp_locked");
++    const bnbAsset = user.assets.find((asset) => asset.type === "bnb");
++    const bnbLockedAsset = user.assets.find((asset) => asset.type === "bnb_locked");
+ 
+     const newMetaAmount = {
+       free: metaAsset ? metaAsset.amount : 0,
+@@ -94,9 +97,16 @@ const PortfolioWidget: React.FC = () => {
+       total: (cpAsset ? cpAsset.amount : 0) + (cpLockedAsset ? cpLockedAsset.amount : 0),
+     };
+ 
++    const newBnbAmount = {
++      free: bnbAsset ? bnbAsset.amount : 0,
++      locked: bnbLockedAsset ? bnbLockedAsset.amount : 0,
++      total: (bnbAsset ? bnbAsset.amount : 0) + (bnbLockedAsset ? bnbLockedAsset.amount : 0),
++    };
++
+     setMetaAmount(newMetaAmount);
+     setCpAmount(newCpAmount);
+-
++    setBnbAmount(newBnbAmount);
++
+   }, [user]);
+ 
+   const handleWithdraw = (amount: string) => {
+@@ -132,6 +142,14 @@ const PortfolioWidget: React.FC = () => {
+             lockedAmount={cpAmount.locked}
+             totalAmount={cpAmount.total}
+           />
++          <TokenDisplay
++            icon="/assets/images/tokens/bnb.png"
++            amount={showLocked ? bnbAmount.locked : bnbAmount.free}
++            name="BNB"
++            showLocked={showLocked}
++            freeAmount={bnbAmount.free}
++            lockedAmount={bnbAmount.locked}
++            totalAmount={bnbAmount.total}
++          />
+           <ToggleIndicator showLocked={showLocked} setShowLocked={setShowLocked} />
+         </div>
+       </TooltipProvider>

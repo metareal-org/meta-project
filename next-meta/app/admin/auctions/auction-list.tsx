@@ -3,7 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import axiosInstance from '@/lib/axios-instance';
 import { useToast } from "@/components/ui/use-toast";
 
@@ -24,6 +23,7 @@ interface AuctionListProps {
 const AuctionList: React.FC<AuctionListProps> = ({ auctions, onUpdate }) => {
   const [selectedAuctions, setSelectedAuctions] = useState<number[]>([]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const { toast } = useToast();
 
   const handleSelectAuction = (id: number) => {
@@ -53,14 +53,42 @@ const AuctionList: React.FC<AuctionListProps> = ({ auctions, onUpdate }) => {
     }
   };
 
+  const handleBulkRemoveAuctions = async () => {
+    try {
+      await axiosInstance.post('/admin/manage/lands/bulk-remove-auctions', {
+        auctionIds: selectedAuctions,
+      });
+      toast({
+        title: "Success",
+        description: "Auctions removed successfully",
+      });
+      setShowRemoveDialog(false);
+      setSelectedAuctions([]);
+      onUpdate();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove auctions",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 space-x-2">
         <Button 
           onClick={() => setShowCancelDialog(true)} 
           disabled={selectedAuctions.length === 0}
         >
           Cancel Selected Auctions ({selectedAuctions.length})
+        </Button>
+        <Button 
+          onClick={() => setShowRemoveDialog(true)} 
+          disabled={selectedAuctions.length === 0}
+          variant="destructive"
+        >
+          Remove Selected Auctions ({selectedAuctions.length})
         </Button>
       </div>
       <Table>
@@ -106,6 +134,21 @@ const AuctionList: React.FC<AuctionListProps> = ({ auctions, onUpdate }) => {
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={() => setShowCancelDialog(false)}>Cancel</Button>
             <Button onClick={handleBulkCancelAuctions}>Confirm</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Selected Auctions</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Are you sure you want to permanently remove {selectedAuctions.length} auctions? This action cannot be undone.</p>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setShowRemoveDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkRemoveAuctions}>Confirm</Button>
           </div>
         </DialogContent>
       </Dialog>

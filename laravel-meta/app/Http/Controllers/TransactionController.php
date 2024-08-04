@@ -33,14 +33,13 @@ class TransactionController extends Controller
                 // Transfer ownership
                 $land->update([
                     'owner_id' => $buyer->id,
-                    'is_for_sale' => false,
                     'fixed_price' => 0,
                 ]);
 
-                // Transfer CP
-                $buyer->unlockCp($offer->price);
-                $buyer->RemoveCp($offer->price);
-                $seller->addCp($offer->price);
+                // Transfer Bnb
+                $buyer->unlockBnb($offer->price);
+                $buyer->RemoveBnb($offer->price);
+                $seller->addBnb($offer->price);
 
                 // Create transaction record
                 Transaction::create([
@@ -55,7 +54,7 @@ class TransactionController extends Controller
 
                 // Cancel all other offers for this land
                 $land->offers()->where('id', '!=', $offer->id)->get()->each(function ($otherOffer) {
-                    $otherOffer->user->unlockCp($otherOffer->price);
+                    $otherOffer->user->unlockBnb($otherOffer->price);
                     $otherOffer->delete();
                 });
             });
@@ -65,7 +64,7 @@ class TransactionController extends Controller
                 'land' => $land->fresh()->load('owner'),
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred during the transaction: ' . $e->getMessage()], 500);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
     public function buyLand(Request $request, $landId)
@@ -82,18 +81,17 @@ class TransactionController extends Controller
             return response()->json(['message' => 'You cannot buy your own land.'], 400);
         }
 
-        if (!$buyer->hasSufficientCp($land->fixed_price)) {
-            return response()->json(['message' => 'Insufficient CP to purchase this land.'], 400);
+        if (!$buyer->hasSufficientBnb($land->fixed_price)) {
+            return response()->json(['message' => 'Insufficient Bnb to purchase this land.'], 400);
         }
 
         try {
             DB::transaction(function () use ($land, $buyer, $seller) {
-                $buyer->removeCp($land->fixed_price);
-                $seller->addCp($land->fixed_price);
+                $buyer->removeBnb($land->fixed_price);
+                $seller->addBnb($land->fixed_price);
 
                 $land->update([
                     'owner_id' => $buyer->id,
-                    'is_for_sale' => false,
                     'fixed_price' => 0,
                 ]);
 
@@ -104,9 +102,9 @@ class TransactionController extends Controller
                     'price' => $land->fixed_price,
                 ]);
 
-                // Cancel buyer's offers for this land and unlock their CP
+                // Cancel buyer's offers for this land and unlock their Bnb
                 $buyer->offers()->where('land_id', $land->id)->get()->each(function ($offer) {
-                    $offer->delete(); // This will trigger the deleted event in the Offer model, which unlocks the CP
+                    $offer->delete(); // This will trigger the deleted event in the Offer model, which unlocks the Bnb
                 });
 
                 // Cancel all other offers for this land
@@ -118,7 +116,7 @@ class TransactionController extends Controller
                 'land' => $land->fresh()->load('owner'),
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'An error occurred during the transaction.'], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 

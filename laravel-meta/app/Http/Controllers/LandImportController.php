@@ -31,7 +31,6 @@ class LandImportController extends Controller
             'size' => round($areaInSquareMeters, 2),
             'owner_id' => 1,
             'fixed_price' => null,
-            'is_for_sale' => false,
             'is_locked' => false,
             'building_id' => 0,
         ]);
@@ -270,5 +269,22 @@ class LandImportController extends Controller
             return response()->json(['error' => 'Unlock failed: ' . $e->getMessage()], 500);
         }
     }
+    public function toggleActive($id)
+    {
+        DB::beginTransaction();
 
+        try {
+            $version = LandVersion::findOrFail($id);
+            $version->is_active = !$version->is_active;
+            $version->save();
+
+            $this->updateLandsTable();
+
+            DB::commit();
+            return response()->json(['message' => 'Version active status toggled successfully', 'is_active' => $version->is_active], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Toggle failed: ' . $e->getMessage()], 500);
+        }
+    }
 }

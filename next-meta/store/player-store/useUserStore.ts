@@ -1,17 +1,28 @@
 import { create } from "zustand";
 import { DEBUG } from "../../core/constants";
-import { UserAsset } from "@/lib/api/asset";
 import { apiFetchOutfitGender, apiFetchUser, apiUpdateUser } from "@/lib/api/user";
+
+export interface UserAsset {
+  id: number;
+  user_id: number;
+  type: string;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface User {
   id: number;
   address: string;
   nickname: string;
   avatar_url: string;
-  coordinates: string;
-  current_mission: number | null;
+  coordinates: string | null;
+  current_mission: number;
   referrer_id: number | null;
   referral_code: string;
+  remember_token: string | null;
+  created_at: string;
+  updated_at: string;
   assets: UserAsset[];
 }
 
@@ -23,6 +34,9 @@ export interface UserState {
   updateUserNickname: (nickname: string) => Promise<void>;
   updateUserMission: (missionId: number) => Promise<void>;
   updateUserAvatar: (avatarUrl: string) => Promise<void>;
+  getAssetAmount: (assetType: string) => number;
+  getTotalAssetAmount: (assetTypes: string[]) => number;
+  updateAssetAmount: (assetType: string, amount: number) => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -32,8 +46,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   fetchUser: async () => {
     try {
       const response = await apiFetchUser();
-      set({ user: response || null });
-      return response || null;
+      set({ user: (response as User) || null });
+      return (response as User) || null;
     } catch (error) {
       DEBUG && console.error("Failed to fetch user:", error);
       return null;
@@ -78,5 +92,29 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (error) {
       DEBUG && console.error("Failed to update user avatar:", error);
     }
+  },
+
+  getAssetAmount: (assetType: string): number => {
+    const user = get().user;
+    if (!user) return 0;
+    const asset = user.assets.find((a) => a.type === assetType);
+    return asset ? asset.amount : 0;
+  },
+
+  getTotalAssetAmount: (assetTypes: string[]): number => {
+    const user = get().user;
+    if (!user) return 0;
+    return assetTypes.reduce((total, type) => {
+      const asset = user.assets.find((a) => a.type === type);
+      return total + (asset ? asset.amount : 0);
+    }, 0);
+  },
+
+  updateAssetAmount: (assetType: string, amount: number) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updatedAssets = state.user.assets.map((asset) => (asset.type === assetType ? { ...asset, amount } : asset));
+      return { user: { ...state.user, assets: updatedAssets } };
+    });
   },
 }));

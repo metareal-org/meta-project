@@ -27,8 +27,8 @@ class Offer extends Model
             if (!$user) {
                 throw new \Exception('User not found for this offer.');
             }
-            if (!$user->lockCp($offer->price)) {
-                throw new \Exception('Insufficient CP to place the offer.');
+            if (!$user->lockBnb($offer->price)) {
+                throw new \Exception('Insufficient Bnb to place the offer.');
             }
         });
 
@@ -41,11 +41,11 @@ class Offer extends Model
                 $priceDifference = $newPrice - $originalPrice;
 
                 if ($priceDifference > 0) {
-                    if (!$user->lockCp($priceDifference)) {
-                        throw new \Exception('Insufficient CP to update the offer.');
+                    if (!$user->lockBnb($priceDifference)) {
+                        throw new \Exception('Insufficient Bnb to update the offer.');
                     }
                 } else {
-                    $user->unlockCp(abs($priceDifference));
+                    $user->unlockBnb(abs($priceDifference));
                 }
             }
         });
@@ -53,7 +53,7 @@ class Offer extends Model
         static::deleted(function ($offer) {
             if (!$offer->is_accepted) {
                 $user = $offer->user;
-                $user->unlockCp($offer->price);
+                $user->unlockBnb($offer->price);
             }
         });
     }

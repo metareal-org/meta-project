@@ -15,7 +15,7 @@ class AssetController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
-        
+
         $validatedData = $request->validate([
             'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
             'amount' => 'required|integer',
@@ -37,7 +37,7 @@ class AssetController extends Controller
         if ($success) {
             $user->refresh();
             return response()->json([
-                'message' => 'Assets updated successfully', 
+                'message' => 'Assets updated successfully',
                 'assets' => $user->assets
             ]);
         } else {

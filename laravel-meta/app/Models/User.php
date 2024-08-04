@@ -46,7 +46,7 @@ class User extends Authenticatable
         });
 
         static::created(function ($user) {
-            $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'lottery_scratch'];
+            $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'bnb', 'bnb_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box'];
 
             foreach ($assetTypes as $type) {
                 $user->assets()->create([
@@ -72,7 +72,7 @@ class User extends Authenticatable
         );
 
         // Create initial assets for the bank if they don't exist
-        $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'lottery_scratch'];
+        $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box'];
 
         foreach ($assetTypes as $type) {
             $bank->assets()->firstOrCreate(['type' => $type], ['amount' => 0]);
@@ -334,5 +334,80 @@ class User extends Authenticatable
         return $this->belongsToMany(Quest::class, 'user_quests')
             ->withPivot('completed_at')
             ->withTimestamps();
+    }
+
+
+    public function getBnbAttribute()
+    {
+        $bnbFree = $this->assets->firstWhere('type', 'bnb')->amount ?? 0;
+        $bnbLocked = $this->assets->firstWhere('type', 'bnb_locked')->amount ?? 0;
+        return [
+            'free' => $bnbFree,
+            'locked' => $bnbLocked,
+            'total' => $bnbFree + $bnbLocked,
+        ];
+    }
+
+    public function lockBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        $bnbLockedAsset = $this->assets->firstWhere('type', 'bnb_locked');
+        if (!$bnbAsset || !$bnbLockedAsset || $bnbAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($bnbAsset, $bnbLockedAsset, $amount) {
+            $bnbAsset->amount -= $amount;
+            $bnbLockedAsset->amount += $amount;
+            return $bnbAsset->save() && $bnbLockedAsset->save();
+        });
+    }
+
+    public function unlockBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        $bnbLockedAsset = $this->assets->firstWhere('type', 'bnb_locked');
+        if (!$bnbAsset || !$bnbLockedAsset || $bnbLockedAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($bnbAsset, $bnbLockedAsset, $amount) {
+            $bnbAsset->amount += $amount;
+            $bnbLockedAsset->amount -= $amount;
+            return $bnbAsset->save() && $bnbLockedAsset->save();
+        });
+    }
+
+    public function addBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        if (!$bnbAsset) {
+            return false;
+        }
+        $bnbAsset->amount += $amount;
+        return $bnbAsset->save();
+    }
+
+    public function removeBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        if (!$bnbAsset || $bnbAsset->amount < $amount) {
+            return false;
+        }
+        $bnbAsset->amount -= $amount;
+        return $bnbAsset->save();
+    }
+
+    public function transferBnb(User $recipient, int $amount): bool
+    {
+        return DB::transaction(function () use ($recipient, $amount) {
+            if (!$this->removeBnb($amount)) {
+                return false;
+            }
+            return $recipient->addBnb($amount);
+        });
+    }
+
+    public function hasSufficientBnb(int $amount): bool
+    {
+        return ($this->assets->firstWhere('type', 'bnb')->amount ?? 0) >= $amount;
     }
 }

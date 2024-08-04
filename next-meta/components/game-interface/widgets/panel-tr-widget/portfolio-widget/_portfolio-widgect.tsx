@@ -59,43 +59,22 @@ const ToggleIndicator: React.FC<ToggleIndicatorProps> = ({ showLocked, setShowLo
     {showLocked ? <PiggyBank /> : <HandCoins />}
   </Button>
 );
-
-
-
 const PortfolioWidget: React.FC = () => {
   const [showLocked, setShowLocked] = useState(false);
-  const { user } = useUserStore();
+  const { user, getAssetAmount } = useUserStore();
   const { openAlert } = useAlertStore();
-  const [metaAmount, setMetaAmount] = useState({ free: 0, locked: 0, total: 0 });
-  const [cpAmount, setCpAmount] = useState({ free: 0, locked: 0, total: 0 });
 
-  useEffect(() => {
-    if (!user || !user.assets) {
-      console.log("User or user assets not available", user);
-      return;
-    }
+  const getAmount = (type: string) => ({
+    free: getAssetAmount(type),
+    locked: getAssetAmount(`${type}_locked`),
+    get total() {
+      return this.free + this.locked;
+    },
+  });
 
-    const metaAsset = user.assets.find((asset) => asset.type === "meta");
-    const metaLockedAsset = user.assets.find((asset) => asset.type === "meta_locked");
-    const cpAsset = user.assets.find((asset) => asset.type === "cp");
-    const cpLockedAsset = user.assets.find((asset) => asset.type === "cp_locked");
-
-    const newMetaAmount = {
-      free: metaAsset ? metaAsset.amount : 0,
-      locked: metaLockedAsset ? metaLockedAsset.amount : 0,
-      total: (metaAsset ? metaAsset.amount : 0) + (metaLockedAsset ? metaLockedAsset.amount : 0),
-    };
-
-    const newCpAmount = {
-      free: cpAsset ? cpAsset.amount : 0,
-      locked: cpLockedAsset ? cpLockedAsset.amount : 0,
-      total: (cpAsset ? cpAsset.amount : 0) + (cpLockedAsset ? cpLockedAsset.amount : 0),
-    };
-
-    setMetaAmount(newMetaAmount);
-    setCpAmount(newCpAmount);
-
-  }, [user]);
+  const metaAmount = getAmount("meta");
+  const cpAmount = getAmount("cp");
+  const bnbAmount = getAmount("bnb");
 
   const handleWithdraw = (amount: string) => {
     console.log("Withdrawal successful", amount);
@@ -140,6 +119,15 @@ const PortfolioWidget: React.FC = () => {
             freeAmount={cpAmount.free}
             lockedAmount={cpAmount.locked}
             totalAmount={cpAmount.total}
+          />
+          <TokenDisplay
+            icon="/assets/images/tokens/bnb.webp"
+            amount={showLocked ? bnbAmount.locked : bnbAmount.free}
+            name="BNB"
+            showLocked={showLocked}
+            freeAmount={bnbAmount.free}
+            lockedAmount={bnbAmount.locked}
+            totalAmount={bnbAmount.total}
           />
           <ToggleIndicator showLocked={showLocked} setShowLocked={setShowLocked} />
         </div>

@@ -167,7 +167,7 @@ export default function MyOffersDrawer() {
                   <div className="flex items-center">
                     <div className="w-16 h-16 mr-3 relative">
                       <img
-                        src="/assets/images/buldings/building-empty.png"
+                        src="/assets/images/buildings/building-empty.png"
                         alt="Offer"
                         className="w-full h-full object-cover rounded-md shadow-sm"
                       />

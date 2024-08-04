@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('size')->nullable();
             $table->integer('owner_id')->nullable()->default(0);
             $table->integer('fixed_price')->nullable()->default(0);
+            $table->boolean('is_in_scratch')->default(false);
             $table->boolean('is_locked')->nullable()->default(false);
             $table->integer('building_id')->nullable()->default(0);
             $table->integer('building_name')->nullable()->default(0);

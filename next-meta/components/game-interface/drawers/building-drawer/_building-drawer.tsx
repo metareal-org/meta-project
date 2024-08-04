@@ -70,7 +70,7 @@ export default function BuildingDrawer() {
       <Skeleton className="w-full h-[160px] rounded-lg" />
     ) : (
       <img
-        src={currentLandDetails?.is_locked ? "/assets/images/buldings/building-locked.png" : "/assets/images/buldings/building-empty.png"}
+        src={currentLandDetails?.is_locked ? "/assets/images/buildings/building-locked.png" : "/assets/images/buildings/building-empty.png"}
         className="rounded-lg w-full h-[160px] object-cover"
       />
     );

@@ -10,14 +10,17 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Land extends Model
 {
-    protected $appends = ['type', 'owner_nickname', 'has_active_auction', 'minimum_bid'];
-
+    protected $appends = ['type', 'owner_nickname', 'has_active_auction', 'minimum_bid', 'is_for_sale'];
+    protected $casts = [
+        'is_in_scratch' => 'boolean',
+    ];
     protected function type(): Attribute
     {
         return Attribute::make(
             get: fn() => "building",
         );
     }
+
     protected function ownerNickname(): Attribute
     {
         return Attribute::make(
@@ -30,6 +33,12 @@ class Land extends Model
         );
     }
 
+    protected function isForSale(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->fixed_price !== null && $this->fixed_price > 0,
+        );
+    }
 
     public function owner(): BelongsTo
     {
@@ -46,7 +55,6 @@ class Land extends Model
         return $this->hasMany(Offer::class);
     }
 
-
     public function auctions(): HasMany
     {
         return $this->hasMany(Auction::class);
@@ -61,7 +69,6 @@ class Land extends Model
     {
         return $this->activeAuction()->exists();
     }
-
 
     public function getFormattedActiveAuctionAttribute()
     {
@@ -106,4 +113,9 @@ class Land extends Model
         $highestBid = $activeAuction->highest_bid;
         return $highestBid ? max($highestBid * 1.05, $activeAuction->minimum_price) : $activeAuction->minimum_price;
     }
+    public function scratchBoxes()
+    {
+        return $this->belongsToMany(ScratchBox::class, 'scratch_box_land');
+    }
 }
+    

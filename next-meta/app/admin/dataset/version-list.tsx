@@ -1,13 +1,14 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import axiosInstance from "@/lib/axios-instance";
 import { useToast } from "@/components/ui/use-toast";
 import dynamic from "next/dynamic";
-import { Lock, Unlock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Lock, Unlock, Loader2, Eye } from "lucide-react";
 
 const LandMapPreview = dynamic(() => import("./land-map-preview"), { ssr: false });
 
@@ -22,77 +23,77 @@ interface Version {
 
 interface VersionListProps {
   versions: Version[];
-  onUpdate: () => void;
+  onUpdate: () => Promise<void>;
 }
 
 const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
-  const [activeVersions, setActiveVersions] = useState<number[]>([]);
-  const [previewData, setPreviewData] = useState(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedVersions, setSelectedVersions] = useState<number[]>([]);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewingVersionId, setPreviewingVersionId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdatingActive, setIsUpdatingActive] = useState(false);
+  const [isDeletingVersion, setIsDeletingVersion] = useState<number | null>(null);
+  const [isTogglingLock, setIsTogglingLock] = useState<number | null>(null);
+  const [updatingVersionId, setUpdatingVersionId] = useState<number | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    setActiveVersions(versions.filter((v) => v.is_active).map((v) => v.id));
-  }, [versions]);
-
-  const handleCheckboxChange = (id: number) => {
-    setActiveVersions((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedVersions(versions.map((v) => v.id));
+    } else {
+      setSelectedVersions([]);
+    }
   };
 
-  const handleUpdateActiveVersions = async () => {
+  const handleSelectVersion = (id: number) => {
+    setSelectedVersions((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  };
+
+  const handleToggleActive = async (id: number, currentState: boolean) => {
+    setUpdatingVersionId(id);
     try {
-      await axiosInstance.post("/admin/lands/update-active-versions", { active_versions: activeVersions });
+      await axiosInstance.post(`/admin/lands/toggle-active/${id}`, { is_active: !currentState });
       toast({
         title: "Success",
-        description: "Active versions updated successfully",
+        description: `Version ${currentState ? "deactivated" : "activated"} successfully`,
       });
-      onUpdate();
+      // Refetch data to update the UI
+      await onUpdate();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update active versions",
+        description: `Failed to ${currentState ? "deactivate" : "activate"} version`,
         variant: "destructive",
       });
+    } finally {
+      setUpdatingVersionId(null);
+      window.location.reload();
     }
   };
 
-  const handleDeleteVersion = async (id: number) => {
+  const handleDeleteSelected = async () => {
+    setIsDeletingVersion(-1); // Use -1 to indicate multiple deletions
     try {
-      await axiosInstance.delete(`/admin/lands/versions/${id}`);
+      await Promise.all(selectedVersions.map((id) => axiosInstance.delete(`/admin/lands/versions/${id}`)));
       toast({
         title: "Success",
-        description: "Version deleted successfully",
+        description: "Selected versions deleted successfully",
       });
-      onUpdate();
+      setSelectedVersions([]);
+      await onUpdate();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete version",
+        description: "Failed to delete selected versions",
         variant: "destructive",
       });
+    } finally {
+      setIsDeletingVersion(null);
     }
-  };
-
-  const handlePreview = async (id: number) => {
-    try {
-      const response = await axiosInstance.get(`/admin/lands/versions/${id}`);
-      setPreviewData(JSON.parse(response.data.data));
-      setIsPreviewOpen(true);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load preview data",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleClosePreview = () => {
-    setIsPreviewOpen(false);
-    setPreviewData(null);
   };
 
   const handleToggleLock = async (id: number, currentLockState: boolean) => {
+    setIsTogglingLock(id);
     try {
       if (currentLockState) {
         await axiosInstance.post(`/admin/lands/unlock/${id}`);
@@ -103,25 +104,60 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
         title: "Success",
         description: `Lands ${currentLockState ? "unlocked" : "locked"} successfully`,
       });
-      onUpdate();
+      await onUpdate();
     } catch (error) {
       toast({
         title: "Error",
         description: `Failed to ${currentLockState ? "unlock" : "lock"} lands`,
         variant: "destructive",
       });
+    } finally {
+      setIsTogglingLock(null);
     }
+  };
+
+  const handlePreview = async (id: number) => {
+    try {
+      setIsLoading(true);
+      setPreviewingVersionId(id);
+      const response = await axiosInstance.get(`/admin/lands/versions/${id}`);
+      setPreviewData(JSON.parse(response.data.data));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load preview data",
+        variant: "destructive",
+      });
+      setPreviewingVersionId(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewingVersionId(null);
+    setPreviewData(null);
   };
 
   return (
     <>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-2">
+          <Checkbox id="select-all" checked={selectedVersions.length === versions.length} onCheckedChange={handleSelectAll} />
+          <label htmlFor="select-all">Select All</label>
+        </div>
+        <Button onClick={handleDeleteSelected} variant="destructive" disabled={selectedVersions.length === 0 || isDeletingVersion !== null}>
+          {isDeletingVersion !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Selected"}
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Active</TableHead>
+            <TableHead className="w-[50px]">Select</TableHead>
             <TableHead>File Name</TableHead>
             <TableHead>Version Name</TableHead>
             <TableHead>Created At</TableHead>
+            <TableHead>Active</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -129,41 +165,40 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
           {versions.map((version: Version) => (
             <TableRow key={version.id}>
               <TableCell>
-                <Checkbox checked={activeVersions.includes(version.id)} onCheckedChange={() => handleCheckboxChange(version.id)} />
+                <Checkbox checked={selectedVersions.includes(version.id)} onCheckedChange={() => handleSelectVersion(version.id)} />
               </TableCell>
               <TableCell>{version.file_name}</TableCell>
               <TableCell>{version.version_name}</TableCell>
               <TableCell>{new Date(version.created_at).toLocaleString()}</TableCell>
               <TableCell>
+                {updatingVersionId === version.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin ml-2 inline" />
+                ) : (
+                  <Switch
+                    checked={version.is_active}
+                    onCheckedChange={() => handleToggleActive(version.id, version.is_active)}
+                    disabled={updatingVersionId === version.id}
+                  />
+                )}
+              </TableCell>
+              <TableCell>
                 <div className="flex space-x-2">
-                  <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={() => handlePreview(version.id)}>Preview</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[800px]" onInteractOutside={handleClosePreview} onEscapeKeyDown={handleClosePreview}>
-                      <DialogHeader>
-                        <DialogTitle>Land Preview</DialogTitle>
-                      </DialogHeader>
-                      {previewData && <LandMapPreview geoJsonData={previewData} />}
-                    </DialogContent>
-                  </Dialog>
+                  <Button onClick={() => handlePreview(version.id)} disabled={isLoading && previewingVersionId === version.id} size="sm">
+                    {isLoading && previewingVersionId === version.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                   <Button
                     onClick={() => handleToggleLock(version.id, version.is_locked)}
                     variant={version.is_locked ? "destructive" : "default"}
-                    className="w-[100px]"
+                    disabled={isTogglingLock === version.id || !version.is_active}
+                    size="sm"
                   >
-                    {version.is_locked ? (
-                      <>
-                        <Unlock className="mr-2 h-4 w-4" /> Unlock
-                      </>
+                    {isTogglingLock === version.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : version.is_locked ? (
+                      <Unlock className="h-4 w-4" />
                     ) : (
-                      <>
-                        <Lock className="mr-2 h-4 w-4" /> Lock
-                      </>
+                      <Lock className="h-4 w-4" />
                     )}
-                  </Button>
-                  <Button onClick={() => handleDeleteVersion(version.id)} variant="destructive">
-                    Delete
                   </Button>
                 </div>
               </TableCell>
@@ -171,9 +206,15 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
           ))}
         </TableBody>
       </Table>
-      <Button onClick={handleUpdateActiveVersions} className="mt-4">
-        Update Active Versions
-      </Button>
+
+      <Dialog open={previewingVersionId !== null} onOpenChange={(open) => !open && handleClosePreview()}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Land Preview</DialogTitle>
+          </DialogHeader>
+          {previewData && <LandMapPreview geoJsonData={previewData} />}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -33,7 +33,7 @@ export default function BuildingDrawer() {
               <X size={24} />
             </Button>
             <img
-              src="/assets/images/buldings/building-empty.png"
+              src="/assets/images/buildings/building-empty.png"
               className="rounded-lg w-full  h-[160px] object-cover "
             />
           </div>

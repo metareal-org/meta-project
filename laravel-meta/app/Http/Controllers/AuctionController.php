@@ -142,7 +142,6 @@ class AuctionController extends Controller
 
                     // Transfer land ownership
                     $land->owner_id = $buyer->id;
-                    $land->is_for_sale = false;
                     $land->fixed_price = 0;
                     $land->save();
 
@@ -172,7 +171,6 @@ class AuctionController extends Controller
                 } else {
                     // No bids, just update the land
                     $land = $auction->land;
-                    $land->is_for_sale = false;
                     $land->fixed_price = 0;
                     $land->save();
                 }
@@ -214,7 +212,6 @@ class AuctionController extends Controller
     
                     // Transfer land ownership
                     $land->owner_id = $buyer->id;
-                    $land->is_for_sale = false;
                     $land->fixed_price = 0;
                     $land->save();
     
@@ -244,7 +241,6 @@ class AuctionController extends Controller
                 } else {
                     // No bids, just update the land
                     $land = $auction->land;
-                    $land->is_for_sale = false;
                     $land->fixed_price = 0;
                     $land->save();
                 }
@@ -271,7 +267,6 @@ class AuctionController extends Controller
             DB::beginTransaction();
             try {
                 $land = $canceledAuction->land;
-                $land->is_for_sale = false;
                 $land->fixed_price = 0;
                 $land->save();
     
@@ -319,7 +314,6 @@ class AuctionController extends Controller
             $auction->save();
 
             $land = $auction->land;
-            $land->is_for_sale = false;
             $land->fixed_price = 0;
             $land->save();
 

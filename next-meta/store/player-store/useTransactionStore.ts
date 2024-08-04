@@ -13,22 +13,14 @@ const useTransactionStore = create<TransactionStore>((set) => ({
   buyLand: async (landId: number) => {
     const userStore = useUserStore.getState();
     const landStore = useLandStore.getState();
-
     set({ buyingLand: true });
     try {
       const result = await buyLand(landId);
-
-      // Update user's CP balance
       userStore.fetchUser();
-
-      // Re-fetch land details
       await landStore.fetchLandDetails(landId);
-
-      // You might want to show a success message here
       console.log("Land purchased successfully:", result);
     } catch (error) {
       console.error("Error buying land:", error);
-      // You might want to show an error message here
     } finally {
       set({ buyingLand: false });
     }

@@ -59,7 +59,7 @@ export default function BuildingOfferDialog() {
         await updateOffer(user_offer.id, offerPriceNumber);
       } else {
         await submitOffer(currentLandDetails.id, offerPriceNumber);
-        fetchPlayerOffers(); 
+        fetchPlayerOffers();
       }
       toast({
         variant: "success",
@@ -113,11 +113,7 @@ export default function BuildingOfferDialog() {
     >
       <div>
         <div className="rounded-lg overflow-hidden shadow-lg">
-          <img
-            className="w-full h-48 object-cover"
-            src="/assets/images/buldings/building-empty.png"
-            alt="Property"
-          />
+          <img className="w-full h-48 object-cover" src="/assets/images/buildings/building-empty.png" alt="Property" />
         </div>
 
         {currentLandDetails && (

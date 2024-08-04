@@ -15,7 +15,11 @@ class AdminLandController extends Controller
         $lands = Land::with('owner')->paginate(20);
         return response()->json($lands);
     }
-
+    public function getAllLandIds()
+    {
+        $landIds = Land::pluck('id')->toArray();
+        return response()->json($landIds);
+    }
     public function update(Request $request, $id)
     {
         $land = Land::findOrFail($id);
@@ -24,7 +28,6 @@ class AdminLandController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'fixed_price' => 'nullable|numeric',
-            'is_for_sale' => 'boolean',
         ]);
 
         $land->update($validatedData);
@@ -55,7 +58,6 @@ class AdminLandController extends Controller
 
             foreach ($lands as $land) {
                 $land->fixed_price = $validatedData['fixedPrice'];
-                $land->is_for_sale = true;
                 $land->save();
             }
 
@@ -82,7 +84,6 @@ class AdminLandController extends Controller
 
             foreach ($lands as $land) {
                 $land->fixed_price = $land->size * $validatedData['pricePerSize'];
-                $land->is_for_sale = true;
                 $land->save();
             }
 
@@ -147,6 +148,27 @@ class AdminLandController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Failed to cancel auctions: ' . $e->getMessage()], 500);
+        }
+    }
+
+
+    public function bulkRemoveAuctions(Request $request)
+    {
+        $validatedData = $request->validate([
+            'auctionIds' => 'required|array',
+            'auctionIds.*' => 'integer',
+        ]);
+    
+        DB::beginTransaction();
+    
+        try {
+            Auction::whereIn('id', $validatedData['auctionIds'])->delete();
+    
+            DB::commit();
+            return response()->json(['message' => 'Auctions removed successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to remove auctions: ' . $e->getMessage()], 500);
         }
     }
 
