@@ -15,24 +15,38 @@ interface TokenDisplayProps {
   freeAmount: number;
   lockedAmount: number;
   totalAmount: number;
+  theme: "default" | "shadcn";
 }
 
-const TokenDisplay: React.FC<TokenDisplayProps> = ({ icon, amount, name, showLocked, freeAmount, lockedAmount, totalAmount }) => (
+const TokenDisplay: React.FC<TokenDisplayProps> = ({ icon, amount, name, showLocked, freeAmount, lockedAmount, totalAmount, theme }) => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <div className="bg-teal-fg/90 border-2 relative border-teal rounded-full px-3 py-1 flex flex-col items-center justify-center cursor-pointer">
+      <div
+        className={`${
+          theme === "default" ? "bg-teal-fg/90 border-2 border-teal rounded-full" : "bg-background border"
+        } relative px-3 py-1 flex flex-col items-center justify-center cursor-pointer`}
+      >
+        {theme === "default" && (
+          <span
+            className="text-xs absolute -top-4 bg-teal/90 left-[16px] rounded-b-none rounded px-2 text-teal-fg text-teal-200"
+          >
+            {showLocked ? "Locked" : "Free"}
+          </span>
+        )}
         <div className="flex items-center space-x-2">
+          {theme === "shadcn" && (
+            <span className="text-xs text-muted-foreground mr-1">
+              {showLocked ? "Locked" : "Free"}:
+            </span>
+          )}
           <img src={icon} alt={name} className="w-6 h-6" />
-          <span className="text-white font-medium text-sm">
+          <span className={`${theme === "default" ? "text-white" : "text-foreground"} font-medium text-sm`}>
             {numeral(amount).format("0,0")} {name}
           </span>
         </div>
-        <span className="text-xs absolute -top-4 bg-teal/90 left-[16px] rounded-b-none rounded px-2 text-teal-fg text-teal-200">
-          {showLocked ? "Locked" : "Free"}
-        </span>
       </div>
     </TooltipTrigger>
-    <TooltipContent side="bottom" className="bg-teal-fg text-white p-3 rounded-lg shadow-lg">
+    <TooltipContent side="bottom" className={`${theme === "default" ? "bg-teal-fg  rounded-lg text-white" : "bg-teal-fg text-white rounded-none"} p-3 shadow-lg`}>
       <div className="space-y-1">
         <p className="font-semibold">{name} Details:</p>
         <p>Free: {numeral(freeAmount).format("0,0")}</p>
@@ -46,20 +60,35 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({ icon, amount, name, showLoc
 interface ToggleIndicatorProps {
   showLocked: boolean;
   setShowLocked: React.Dispatch<React.SetStateAction<boolean>>;
+  theme: "default" | "shadcn";
 }
 
-const ToggleIndicator: React.FC<ToggleIndicatorProps> = ({ showLocked, setShowLocked }) => (
+const ToggleIndicator: React.FC<ToggleIndicatorProps> = ({ showLocked, setShowLocked, theme }) => (
   <Button
     size="icon"
-    variant="ghost"
+    variant={theme === "default" ? "ghost" : "outline"}
     onClick={() => setShowLocked(!showLocked)}
-    className={`!p-1.5 border-2 border-teal bg-teal-fg/90 !rounded-full text-xs font-medium transition-colors
-      ${showLocked ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}
+    className={`${
+      theme === "default"
+        ? "!p-1.5 border-2 border-teal bg-teal-fg/90 !rounded-full text-xs font-medium transition-colors"
+        : "rounded-none"
+    } ${
+      theme === "default"
+        ? showLocked
+          ? "bg-red-500 text-white"
+          : "bg-green-500 text-white"
+        : ""
+    }`}
   >
     {showLocked ? <PiggyBank /> : <HandCoins />}
   </Button>
 );
-const PortfolioWidget: React.FC = () => {
+
+interface PortfolioWidgetProps {
+  theme?: "default" | "shadcn";
+}
+
+const PortfolioWidget: React.FC<PortfolioWidgetProps> = ({ theme = "default" }) => {
   const [showLocked, setShowLocked] = useState(false);
   const { user, getAssetAmount } = useUserStore();
   const { openAlert } = useAlertStore();
@@ -97,7 +126,7 @@ const PortfolioWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-[42px] right-4 z-50">
+    <div className={` ${theme === "shadcn" ? "rounded-lg" : "fixed top-[42px] right-4 z-50"}`}>
       <TooltipProvider delayDuration={100}>
         <div className="flex items-center gap-2">
           <div onClick={showWithdrawAlert}>
@@ -109,6 +138,7 @@ const PortfolioWidget: React.FC = () => {
               freeAmount={metaAmount.free}
               lockedAmount={metaAmount.locked}
               totalAmount={metaAmount.total}
+              theme={theme}
             />
           </div>
           <TokenDisplay
@@ -119,6 +149,7 @@ const PortfolioWidget: React.FC = () => {
             freeAmount={cpAmount.free}
             lockedAmount={cpAmount.locked}
             totalAmount={cpAmount.total}
+            theme={theme}
           />
           <TokenDisplay
             icon="/assets/images/tokens/bnb.webp"
@@ -128,8 +159,9 @@ const PortfolioWidget: React.FC = () => {
             freeAmount={bnbAmount.free}
             lockedAmount={bnbAmount.locked}
             totalAmount={bnbAmount.total}
+            theme={theme}
           />
-          <ToggleIndicator showLocked={showLocked} setShowLocked={setShowLocked} />
+          <ToggleIndicator showLocked={showLocked} setShowLocked={setShowLocked} theme={theme} />
         </div>
       </TooltipProvider>
     </div>

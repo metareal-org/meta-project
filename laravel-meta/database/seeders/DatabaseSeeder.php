@@ -74,26 +74,13 @@ class DatabaseSeeder extends Seeder
 
 
         $this->call(UsersTableSeeder::class);
-        $this->call(UserQuestsTableSeeder::class);
-        $this->call(TransactionsTableSeeder::class);
         $this->call(ScratchBoxLandTableSeeder::class);
         $this->call(ScratchBoxesTableSeeder::class);
         $this->call(QuestsTableSeeder::class);
         $this->call(PersonalAccessTokensTableSeeder::class);
-        $this->call(OffersTableSeeder::class);
         $this->call(MigrationsTableSeeder::class);
         $this->call(LandVersionsTableSeeder::class);
         $this->call(LandsTableSeeder::class);
-        $this->call(JobBatchesTableSeeder::class);
-        $this->call(JobsTableSeeder::class);
-        $this->call(GiftBoxContentsTableSeeder::class);
-        $this->call(GiftBoxesTableSeeder::class);
-        $this->call(FailedJobsTableSeeder::class);
-        $this->call(CurrenciesTableSeeder::class);
-        $this->call(CacheLocksTableSeeder::class);
-        $this->call(CacheTableSeeder::class);
-        $this->call(AuctionBidsTableSeeder::class);
-        $this->call(AuctionsTableSeeder::class);
         $this->call(AssetsTableSeeder::class);
 
     }

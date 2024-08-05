@@ -4,7 +4,6 @@ use App\Http\Controllers\AdminLandController;
 use App\Http\Controllers\AdminScratchBoxController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetListingController;
-use App\Http\Controllers\AssetTradeController;
 use App\Http\Controllers\AuctionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\LandController;

@@ -2,8 +2,7 @@
 import React, { useEffect } from "react";
 import Sidebar from "@/components/admin/sidebar";
 import Header from "@/components/admin/header";
-import { Hammer, PackageOpen, LandPlot, Building, Coins } from "lucide-react";
-import { useRouter } from "next/router";
+import { LandPlot, Building } from "lucide-react";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { redirect } from "next/navigation";
 
@@ -31,7 +30,7 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar items={navItems} />
+      <Sidebar items={navItems} type="Market" />
       <div className="flex flex-col">
         <Header />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">{children}</main>

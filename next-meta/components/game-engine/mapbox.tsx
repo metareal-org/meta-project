@@ -17,27 +17,33 @@ export default function Mapbox() {
   const [isClient, setIsClient] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const minimapContainer = useRef<HTMLDivElement>(null);
+  const rtlPluginLoaded = useRef(false);
   const { mapbox, minimap, initializeMapbox, initializeMinimap } = useMapStore();
   const { threebox, setThreebox } = useThreeboxStore() as ThreeboxStore;
   const { selectedMission } = useMissionStore();
   const { user } = useUserStore();
-  const [rtlLoaded, setRtlLoaded] = useState(false);
+
   mapboxgl.accessToken = "pk.eyJ1Ijoic3ViZGFuaWFsIiwiYSI6ImNsNTU3cmcwdjE2cm0zZnFxdm1pemZ3cjQifQ.fLqs4EX703SYVVE0DzknNw";
+
   useEffect(() => {
     if (isClient) return;
     setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (!isClient || rtlLoaded) return;
-    mapboxgl.setRTLTextPlugin(
-      "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js",
-      () => {
-        setRtlLoaded(true);
-      },
-      true
-    );
-  }, [isClient, rtlLoaded]);
+    if (!isClient || rtlPluginLoaded.current) return;
+
+    if (!mapboxgl.getRTLTextPluginStatus()) {
+      rtlPluginLoaded.current = true;
+      mapboxgl.setRTLTextPlugin(
+        "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js",
+        () => {
+          console.log("RTL plugin loaded");
+        },
+        true
+      );
+    }
+  }, [isClient]);
 
   useEffect(() => {
     if (!mapbox && mapContainer.current) {
