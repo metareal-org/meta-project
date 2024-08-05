@@ -3,6 +3,8 @@
 use App\Http\Controllers\AdminLandController;
 use App\Http\Controllers\AdminScratchBoxController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetListingController;
+use App\Http\Controllers\AssetTradeController;
 use App\Http\Controllers\AuctionController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\LandController;
@@ -154,6 +156,17 @@ Route::prefix('admin/scratch-boxes')->group(function () {
 // SCRATCH-BOXES
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/scratch-boxes', [ScratchBoxController::class, 'index']);
+    Route::get('/scratch-boxes/available', [ScratchBoxController::class, 'available']);
+    Route::get('/scratch-boxes/owned', [ScratchBoxController::class, 'owned']);
     Route::post('/scratch-boxes/{id}/buy', [ScratchBoxController::class, 'buy']);
     Route::post('/scratch-boxes/{id}/open', [ScratchBoxController::class, 'open']);
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/asset-listings', [AssetListingController::class, 'index']);
+    Route::post('/asset-listings', [AssetListingController::class, 'create']);
+    Route::put('/asset-listings/{listing}', [AssetListingController::class, 'update']);
+    Route::delete('/asset-listings/{listing}', [AssetListingController::class, 'destroy']);
+    Route::post('/asset-listings/{listing}/buy', [AssetListingController::class, 'buy']);
 });

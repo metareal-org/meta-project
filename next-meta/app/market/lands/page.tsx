@@ -1,5 +1,5 @@
+// app/market/lands/page.tsx
 "use client";
-
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import axiosInstance from "@/lib/axios-instance";
@@ -38,106 +38,63 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [showOnlyForSale, setShowOnlyForSale] = useState(false);
-
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, fetchUser } = useUserStore();
+  const user = useUserStore((state) => state.user);
   const { setDialogState } = useDialogStore();
-  const { moveMarker, marker } = useUnitStore();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await fetchUser();
-      } catch (error) {
-        console.error("Authentication failed:", error);
-        router.push("/");
-      }
-    };
-    checkAuth();
-  }, [fetchUser, router]);
-
+  const { toast } = useToast();
   const fetchLands = useCallback(async () => {
     if (!user) return;
-
     try {
       setLoading(true);
       const response = await axiosInstance.get<PaginatedResponse>("/marketplace/lands", {
-        params: {
-          page: currentPage,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-          search: search,
-          for_sale: showOnlyForSale,
-          user_lands_only: activeTab === "user",
-        },
+        params: { page: currentPage, sort_by: sortBy, sort_order: sortOrder, search, for_sale: showOnlyForSale, user_lands_only: activeTab === "user" },
       });
       setLands(response.data.data);
       setCurrentPage(response.data.current_page);
       setTotalPages(response.data.last_page);
     } catch (error) {
       console.error("Failed to fetch lands:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch lands. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to fetch lands. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [activeTab, currentPage, sortBy, sortOrder, search, showOnlyForSale, toast, user]);
 
   useEffect(() => {
-    if (user) {
-      fetchLands();
-    }
+    if (user) fetchLands();
   }, [fetchLands, user]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
+  const handlePageChange = (page: number) => setCurrentPage(page);
   const handleSort = (newSortBy: string) => {
-    if (newSortBy === sortBy) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder("asc");
-    }
+    setSortOrder(newSortBy === sortBy ? (sortOrder === "asc" ? "desc" : "asc") : "asc");
+    setSortBy(newSortBy);
     setCurrentPage(1);
   };
-
   const handleSearch = (value: string) => {
     setSearch(value);
     setCurrentPage(1);
   };
-
   const handleForSaleFilter = (value: boolean) => {
     setShowOnlyForSale(value);
     setCurrentPage(1);
   };
-
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setCurrentPage(1);
     setShowOnlyForSale(false);
   };
 
-  if (!user) {
-    return <div>Loading...</div>;
-  }
+  if (!user) return <div className="container mx-auto p-8 text-center">Loading...</div>;
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-4xl mb-6">Land Marketplace</h1>
-
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-6">
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl mb-2">Land Marketplace</h1>
+      <p className="text-gray-600 mb-8">Explore, collect, and trade unique digital assets</p>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-8">
         <TabsList>
           <TabsTrigger value="all">All Lands</TabsTrigger>
           <TabsTrigger value="user">My Lands</TabsTrigger>
         </TabsList>
       </Tabs>
-
       <FilterControls
         search={search}
         onSearch={handleSearch}
@@ -147,17 +104,8 @@ export default function MarketplacePage() {
         showOnlyForSale={showOnlyForSale}
         onForSaleFilter={handleForSaleFilter}
       />
-
-      <LandGrid 
-        lands={lands} 
-        loading={loading} 
-        activeTab={activeTab}
-        user={user}
-        setDialogState={setDialogState as any}
-      />
-
+      <LandGrid lands={lands} loading={loading} activeTab={activeTab} user={user} setDialogState={setDialogState as any} />
       <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-
       <BuildingSellDialog />
       <BuildingOfferListDialog />
       <BuildingUpdateSellDialog />

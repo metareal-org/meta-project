@@ -5,21 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Asset extends Model
+class AssetListing extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'user_id',
-        'type',
+        'asset_type',
         'amount',
+        'price_in_bnb',
+        'is_active',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
-
-
-    
 }

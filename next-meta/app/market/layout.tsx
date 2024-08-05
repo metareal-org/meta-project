@@ -1,16 +1,32 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import Sidebar from "@/components/admin/sidebar";
 import Header from "@/components/admin/header";
-import { Home, Hammer, PackageOpen, LandPlot, Building, Coins } from "lucide-react";
+import { Hammer, PackageOpen, LandPlot, Building, Coins } from "lucide-react";
+import { useRouter } from "next/router";
+import { useUserStore } from "@/store/player-store/useUserStore";
+import { redirect } from "next/navigation";
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
+  const { fetchUser } = useUserStore();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await fetchUser();
+      } catch (error) {
+        console.error("Authentication failed:", error);
+        redirect("/");
+      }
+    };
+    checkAuth();
+  }, [fetchUser]);
+
   const navItems = [
     { href: "/market/lands", icon: LandPlot, label: "Lands" },
     { href: "/market/scratches", icon: Building, label: "Scratches" },
-    { href: "/market/auctions", icon: Hammer, label: "Auctions" },
-    { href: "/market/offers", icon: PackageOpen, label: "Offers" },
-    { href: "/market/transactions", icon: Coins, label: "Transactions" },
+    { href: "/market/assets", icon: Building, label: "Assets" },
+
   ];
 
   return (

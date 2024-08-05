@@ -15,6 +15,7 @@ class ScratchBox extends Model
         'price' => 'integer',
     ];
 
+    protected $appends = ['type', 'size'];
     public function lands()
     {
         return $this->belongsToMany(Land::class, 'scratch_box_land');
@@ -44,4 +45,15 @@ class ScratchBox extends Model
 
         return $lands;
     }
+
+    public function assets()
+    {
+        return $this->hasMany(Asset::class, 'amount', 'id')->where('type', 'scratch_box');
+    }
+
+    public function getSizeAttribute()
+    {
+        return $this->lands()->sum('size');
+    }
+
 }

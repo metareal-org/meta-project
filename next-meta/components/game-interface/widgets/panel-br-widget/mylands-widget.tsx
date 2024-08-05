@@ -13,7 +13,7 @@ export default function MylandsWidget() {
     if (selectedMission.id < MissionId.GetYourAirdrops) return null;
   return (
     <>
-      <div className="fixed z-10 bottom-20 right-5">
+      <div>
         <Button variant="theme" onClick={handleClick} className="!size-12 text-xl !p-0">
           <HomeIcon size={20} />
         </Button>

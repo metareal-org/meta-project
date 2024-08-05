@@ -52,7 +52,7 @@ const SkeletonCard = () => (
   </Card>
 );
 
-const LandCard = ({ land, user, setDialogState } : { land: LandWithDetails, user: any, setDialogState: (dialog: string, state: boolean) => void }) => {
+const LandCard = ({ land, user, setDialogState }: { land: LandWithDetails; user: any; setDialogState: (dialog: string, state: boolean) => void }) => {
   const { setSelectedLandId } = useLandStore();
 
   const { isOwner, isForSale, isLocked } = useMemo(
@@ -128,65 +128,35 @@ const LandCard = ({ land, user, setDialogState } : { land: LandWithDetails, user
     },
   ];
 
-  const availableButtons = buttonConfigs
-    .filter((config) => config.condition)
-    .sort((a, b) => a.priority - b.priority);
+  const availableButtons = buttonConfigs.filter((config) => config.condition).sort((a, b) => a.priority - b.priority);
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
       <CardHeader className="p-0">
         <div className="relative">
-          <img
-            src="/assets/images/buildings/building-empty.png"
-            alt={`Land ${land.full_id}`}
-            className="w-full h-48 object-cover"
-          />
-          <Badge className="absolute top-2 left-2 bg-black/60 text-white">
-            {land.size} m²
-          </Badge>
-          {isForSale && (
-            <Badge className="absolute top-2 right-2 bg-green-500">
-              For Sale
-            </Badge>
-          )}
+          <img src="/assets/images/buildings/building-empty.png" alt={`Land ${land.full_id}`} className="w-full h-48 object-cover" />
+          <Badge className="absolute top-2 left-2 bg-black/60 text-white">{land.size} m²</Badge>
+          {isForSale && <Badge className="absolute top-2 right-2 bg-green-500">For Sale</Badge>}
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <CardTitle className="text-lg font-semibold mb-2">
-          Land #{land.id}
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold mb-2">Land #{land.id}</CardTitle>
         <div className="text-sm text-gray-500 mb-2">
           <div className="flex items-center">
             <User className="w-4 h-4 mr-1" />
             {land.owner_nickname}
           </div>
         </div>
-        {land.fixed_price && (
-          <div className="text-lg font-semibold text-green-600">
-            {land.fixed_price} BNB
-          </div>
-        )}
+        {land.fixed_price && <div className="text-lg font-semibold text-green-600">{land.fixed_price} BNB</div>}
       </CardContent>
-      <CardFooter className="p-4 pt-0 flex flex-wrap gap-2">
+      <CardFooter className="p-4 pt-0 flex flex-wrap">
         {availableButtons.map((config, index) => (
-          <TooltipProvider key={index}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={config.variant as any}
-                  size="sm"
-                  className="flex items-center gap-1"
-                  onClick={config.onClick}
-                >
-                  {config.icon}
-                  <span className="hidden sm:inline">{config.text}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{config.text}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div key={index} className="flex-grow basis-1/2 min-w-[50%] p-1">
+            <Button variant={config.variant as any} size="sm" className="flex items-center gap-1 w-full" onClick={config.onClick}>
+              {config.icon}
+              <span className="hidden sm:inline">{config.text}</span>
+            </Button>
+          </div>
         ))}
       </CardFooter>
     </Card>

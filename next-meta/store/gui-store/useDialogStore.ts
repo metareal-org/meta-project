@@ -8,6 +8,11 @@ export interface DialogStore {
   buildingUpdateSellDialog: boolean;
   buildingAuctionBidDialog: boolean;
   buildingAuctionDialog: boolean;
+  assetSellDialog: boolean;
+  assetUpdateTradeDialog: boolean;
+  assetBuyDialog: boolean;
+  cancelAssetTradeDialog: boolean;
+  buyAssetTradeDialog: boolean;
   setDialogState: (dialog: keyof Omit<DialogStore, "setDialogState">, active: boolean) => void;
 }
 
@@ -19,6 +24,11 @@ const useDialogStore = create<DialogStore>((set) => ({
   buildingUpdateSellDialog: false,
   buildingAuctionDialog: false,
   buildingAuctionBidDialog: false,
+  assetSellDialog: false,
+  assetUpdateTradeDialog: false,
+  assetBuyDialog: false,
+  cancelAssetTradeDialog: false,
+  buyAssetTradeDialog: false,
   setDialogState: (dialog, active) => {
     set((state) => {
       const newState: DialogStore = {
