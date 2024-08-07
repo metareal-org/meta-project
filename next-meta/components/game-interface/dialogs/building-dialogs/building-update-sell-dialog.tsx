@@ -4,7 +4,6 @@ import { CustomDialog } from "@/components/game-interface/dialogs/_dialogs";
 import useDialogStore from "@/store/gui-store/useDialogStore";
 import useLandStore from "@/store/world-store/useLandStore";
 import { Input } from "@/components/ui/input";
-import axiosInstance from "@/lib/axios-instance";
 import { useToast } from "@/components/ui/use-toast";
 import { useMapStore } from "@/store/engine-store/useMapStore";
 import { updateLandPrice, cancelLandSell } from "@/lib/api/land";

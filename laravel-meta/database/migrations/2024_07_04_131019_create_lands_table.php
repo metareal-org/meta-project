@@ -11,6 +11,10 @@ return new class extends Migration
         Schema::create('lands', function (Blueprint $table) {
             $table->id();
             $table->string('full_id')->nullable();
+            $table->string('name')->nullable();
+            $table->string('description')->nullable();
+            $table->string('image')->nullable();
+            $table->string('type')->nullable()->default('normal');
             $table->string('region')->nullable();
             $table->string('zone')->nullable();
             $table->json('coordinates')->nullable();

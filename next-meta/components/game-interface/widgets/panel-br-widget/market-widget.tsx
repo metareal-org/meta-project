@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MissionId } from "@/core/missions/mission-config";
 import useMissionStore from "@/store/useMissionStore";
 import { ShoppingCart } from "lucide-react";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 
 export default function MarketWidget() {
   const { selectedMission } = useMissionStore();
@@ -17,7 +17,7 @@ export default function MarketWidget() {
   return (
     <>
       <div>
-        <Button onClick={handleClick} variant="theme" className="inventory !size-12 text-xl !p-0">
+        <Button onClick={handleClick} variant="theme" className=" !size-12 text-xl !p-0">
           <ShoppingCart size={20} />
         </Button>
       </div>

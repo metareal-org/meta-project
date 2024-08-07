@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import Sidebar from "@/components/admin/sidebar";
 import Header from "@/components/admin/header";
-import { LandPlot, Building } from "lucide-react";
+import { LandPlot, AxeIcon, BoxIcon } from "lucide-react";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { redirect } from "next/navigation";
 
@@ -23,8 +23,8 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
 
   const navItems = [
     { href: "/market/lands", icon: LandPlot, label: "Lands" },
-    { href: "/market/scratches", icon: Building, label: "Scratches" },
-    { href: "/market/assets", icon: Building, label: "Assets" },
+    { href: "/market/scratches", icon: BoxIcon, label: "Scratches" },
+    { href: "/market/assets", icon: AxeIcon, label: "Assets" },
 
   ];
 

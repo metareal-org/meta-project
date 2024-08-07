@@ -1,7 +1,5 @@
-// store/player-store/usePlayerOffersStore.ts
-
 import { create } from "zustand";
-import { apiSubmitOffer, apiUpdateOffer, apiFetchOffers, apiDeleteOffer, apiFetchuser_offers, apiAcceptOffer } from "@/lib/api/offer";
+import axiosInstance from "@/lib/axios-instance";
 import { DEBUG } from "@/core/constants";
 
 interface Offer {
@@ -35,8 +33,8 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set, get) => ({
   fetchPlayerOffers: async () => {
     set({ isLoading: true, error: null });
     try {
-      const data = await apiFetchuser_offers();
-      set({ playerOffers: data, isLoading: false });
+      const response = await axiosInstance.post("/offers/user");
+      set({ playerOffers: response.data, isLoading: false });
     } catch (error) {
       DEBUG && console.error("Error fetching offers:", error);
       set({ error: "Failed to load offers. Please try again.", isLoading: false });
@@ -45,9 +43,9 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set, get) => ({
 
   submitOffer: async (landId: number, price: number) => {
     try {
-      const response = await apiSubmitOffer(landId, price);
+      const response = await axiosInstance.post("/offers/submit", { land_id: landId, price });
       await get().fetchPlayerOffers();
-      return response;
+      return response.data;
     } catch (error) {
       DEBUG && console.error("Failed to submit offer:", error);
       throw error;
@@ -56,33 +54,31 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set, get) => ({
 
   updateOffer: async (offerId: number, price: number) => {
     try {
-      const response = await apiUpdateOffer(offerId, price);
-      await get().fetchPlayerOffers(); 
-      return response;
+      const response = await axiosInstance.post(`/offers/update/${offerId}`, { price });
+      await get().fetchPlayerOffers();
+      return response.data;
     } catch (error) {
       DEBUG && console.error("Failed to update offer:", error);
       throw error;
     }
   },
-  
+
   fetchOffers: async (landId: number) => {
     try {
-      const response = await apiFetchOffers(landId);
-      return response;
+      const response = await axiosInstance.get(`/offers/${landId}`);
+      return response.data;
     } catch (error) {
       DEBUG && console.error("Failed to fetch offers:", error);
       throw error;
     }
   },
-
-
   deleteOffer: async (offerId: number) => {
     try {
-      const response = await apiDeleteOffer(offerId);
+      const response = await axiosInstance.post(`/offers/delete/${offerId}`);
       set((state) => ({
         playerOffers: state.playerOffers.filter((offer) => offer.id !== offerId),
       }));
-      return response;
+      return response.data;
     } catch (error) {
       DEBUG && console.error("Failed to delete offer:", error);
       throw error;
@@ -91,11 +87,11 @@ export const usePlayerOffersStore = create<PlayerOffersStore>((set, get) => ({
 
   acceptOffer: async (offerId: number) => {
     try {
-      const response = await apiAcceptOffer(offerId);
+      const response = await axiosInstance.post(`/offers/accept/${offerId}`);
       set((state) => ({
         playerOffers: state.playerOffers.map((offer) => (offer.id === offerId ? { ...offer, is_accepted: true } : offer)),
       }));
-      return response;
+      return response.data;
     } catch (error) {
       DEBUG && console.error("Failed to accept offer:", error);
       throw error;

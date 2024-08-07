@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\RecoverAddressRequest;
+use App\Models\Asset;
 use App\Models\User;
+use Auth;
+use DB;
 use Illuminate\Http\Request;
 use SWeb3\Accounts;
 use Illuminate\Support\Facades\Log;
@@ -178,23 +181,61 @@ class UserController extends Controller
             return response()->json(['error' => 'Failed to update Meta amount'], 400);
         }
     }
-
     public function applyReferral(Request $request)
     {
-        $request->validate([
-            'referral_code' => 'required|string',
-        ]);
-
-        $user = $request->user();
-        $result = $user->applyReferral($request->referral_code);
-
-        if ($result) {
-            return response()->json(['status' => 'success', 'message' => 'Referral applied successfully']);
-        } else {
-            return response()->json(['error' => 'Failed to apply referral'], 400);
+        $referralCode = $request->input('referral_code');
+        $invitedUser = Auth::user();
+        if ($invitedUser->referrer_id) {
+            return response()->json([
+                'message' => 'You have already applied a referral code',
+                'referralApplied' => false
+            ], 400);
         }
-    }
 
+        $invitor = User::where('referral_code', $referralCode)->first();
+
+        if ($invitor) {
+            DB::beginTransaction();
+
+            try {
+                // Update invitor's CP
+                $invitorCpAsset = Asset::firstOrCreate(
+                    ['user_id' => $invitor->id, 'type' => 'cp'],
+                    ['amount' => 0]
+                );
+                $invitorCpAsset->increment('amount', 1000);
+
+                // Update invited user's CP
+                $invitedUserCpAsset = Asset::firstOrCreate(
+                    ['user_id' => $invitedUser->id, 'type' => 'cp'],
+                    ['amount' => 0]
+                );
+                $invitedUserCpAsset->increment('amount', 500);
+
+                // Set the referrer_id for the invited user
+                $invitedUser->referrer_id = $invitor->id;
+                $invitedUser->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Referral applied successfully',
+                    'referralApplied' => true
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'An error occurred while applying the referral',
+                    'referralApplied' => false
+                ], 500);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Invalid referral code',
+            'referralApplied' => false
+        ], 400);
+    }
     public function getReferralTree(Request $request)
     {
         $user = $request->user();

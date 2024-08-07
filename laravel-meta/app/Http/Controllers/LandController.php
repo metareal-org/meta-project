@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Land;
+use Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LandController extends Controller
 {
-    private const MIN_ZOOM_LEVEL = 4; // Lowered from 5 to 4
 
     public function all(): JsonResponse
     {
@@ -20,23 +20,50 @@ class LandController extends Controller
     {
         $bounds = $request->input('bounds');
         $zoom = $request->input('zoom');
-        if (!$zoom || $zoom < self::MIN_ZOOM_LEVEL) {
+
+        if (!$zoom || $zoom < 4) {
             return response()->json([]);
         }
-        $query = Land::with('owner:id,nickname');
-        if ($bounds) {
-            $query->whereBetween('latitude', [$bounds['south'], $bounds['north']])
-                ->whereBetween('longitude', [$bounds['west'], $bounds['east']]);
-            $limit = $this->getLimitByZoom($zoom);
-            $query->limit($limit);
+
+        $cacheKey = "lands_{$bounds['south']}_{$bounds['north']}_{$bounds['west']}_{$bounds['east']}_{$zoom}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($bounds, $zoom) {
+            $query = Land::query()
+                ->select('id', 'full_id', 'type', 'region', 'zone', 'coordinates', 'size', 'owner_id', 'center_point')
+                ->with(['owner:id,nickname']);
+
+            if ($bounds) {
+                $query->whereRaw('(center_point->"$.latitude" BETWEEN ? AND ?) AND (center_point->"$.longitude" BETWEEN ? AND ?)', [
+                    $bounds['south'],
+                    $bounds['north'],
+                    $bounds['west'],
+                    $bounds['east']
+                ]);
+                $limit = $this->getLimitByZoom($zoom);
+                $query->limit($limit);
+            }
+
+            $lands = $query->get();
+
+            return response()->json($lands);
+        });
+    }
+    private function getLimitByZoom(float $zoom): int
+    {
+        if ($zoom < 8) {
+            return 400;
+        } elseif ($zoom < 12) {
+            return 1500;
+        } elseif ($zoom < 15) {
+            return 3000;
+        } else {
+            return 4000;
         }
-        $lands = $query->get();
-        return response()->json($lands);
     }
 
     public function getMarketplaceLands(Request $request): JsonResponse
     {
-        $perPage = $request->input('per_page', 20); 
+        $perPage = $request->input('per_page', 20);
         $sortBy = $request->input('sort_by', 'fixed_price'); // Default sort by price
         $sortOrder = $request->input('sort_order', 'asc'); // Default ascending order
         $userLandsOnly = $request->boolean('user_lands_only', false); // New flag to filter user lands
@@ -77,37 +104,32 @@ class LandController extends Controller
 
     public function show($id): JsonResponse
     {
-        $land = Land::with([
-            'owner',
-            'transactions',
-            'offers',
-            'activeAuction.bids.user'
-        ])->findOrFail($id);
+        $land = Land::select('id', 'full_id', 'type', 'region', 'zone', 'coordinates', 'size', 'owner_id', 'latitude', 'longitude')
+            ->with([
+                'owner:id,nickname',
+                'transactions',
+                'offers',
+                'activeAuction.bids.user'
+            ])
+            ->findOrFail($id);
+
         $response = $land->toArray();
-        $response['active_auction'] = $land->formatted_active_auction;
         $response['has_active_auction'] = $land->has_active_auction;
         $response['minimum_bid'] = $land->minimum_bid;
+
+        // Only include active_auction if it exists
+        if ($land->activeAuction) {
+            $response['active_auction'] = $land->formatted_active_auction;
+        }
+
         return response()->json($response);
     }
-
 
     public function getUserLands()
     {
         $user = Auth::user();
         $lands = Land::where('owner_id', $user->id)->get();
         return response()->json($lands);
-    }
-    private function getLimitByZoom(float $zoom): int
-    {
-        if ($zoom < 8) {
-            return 400;  // Doubled from 200
-        } elseif ($zoom < 12) {
-            return 1500; // Doubled from 750
-        } elseif ($zoom < 15) {
-            return 3000; // Doubled from 1500
-        } else {
-            return 4000; // Doubled from 2000
-        }
     }
 
     public function setPrice(Request $request, $id): JsonResponse

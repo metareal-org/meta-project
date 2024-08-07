@@ -8,7 +8,7 @@ import useLandStore from "@/store/world-store/useLandStore";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useMapStore } from "@/store/engine-store/useMapStore";
-import { createAuction } from "@/lib/api/auction";
+import { createAuction } from '@/lib/api/auction';
 
 export default function BuildingAuctionDialog() {
   const { buildingAuctionDialog, setDialogState } = useDialogStore();

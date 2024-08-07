@@ -1,0 +1,3566 @@
+================================================================================
+File: app/Http/Controllers/AdminLandController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Http\Controllers\Controller;
+use App\Models\Auction;
+use App\Models\Land;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class AdminLandController extends Controller
+{
+    public function index()
+    {
+        $lands = Land::with('owner')->paginate(20);
+        return response()->json($lands);
+    }
+    public function getAllLandIds()
+    {
+        $landIds = Land::pluck('id')->toArray();
+        return response()->json($landIds);
+    }
+    public function update(Request $request, $id)
+    {
+        $land = Land::findOrFail($id);
+        $validatedData = $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'fixed_price' => 'nullable|numeric',
+        ]);
+        $land->update($validatedData);
+        return response()->json(['message' => 'Land updated successfully', 'land' => $land]);
+    }
+    public function destroy($id)
+    {
+        $land = Land::findOrFail($id);
+        $land->delete();
+        return response()->json(['message' => 'Land deleted successfully']);
+    }
+    public function bulkUpdateFixedPrice(Request $request)
+    {
+        $validatedData = $request->validate([
+            'landIds' => 'required|array',
+            'landIds.*' => 'integer',
+            'fixedPrice' => 'required|numeric',
+        ]);
+        DB::beginTransaction();
+        try {
+            $lands = Land::whereIn('id', $validatedData['landIds'])->get();
+            foreach ($lands as $land) {
+                $land->fixed_price = $validatedData['fixedPrice'];
+                $land->save();
+            }
+            DB::commit();
+            return response()->json(['message' => 'Lands updated successfully with fixed price']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to update lands: ' . $e->getMessage()], 500);
+        }
+    }
+    public function bulkUpdatePriceBySize(Request $request)
+    {
+        $validatedData = $request->validate([
+            'landIds' => 'required|array',
+            'landIds.*' => 'integer',
+            'pricePerSize' => 'required|numeric',
+        ]);
+        DB::beginTransaction();
+        try {
+            $lands = Land::whereIn('id', $validatedData['landIds'])->get();
+            foreach ($lands as $land) {
+                $land->fixed_price = $land->size * $validatedData['pricePerSize'];
+                $land->save();
+            }
+            DB::commit();
+            return response()->json(['message' => 'Lands updated successfully with price by size']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to update lands: ' . $e->getMessage()], 500);
+        }
+    }
+    public function bulkCreateAuctions(Request $request)
+    {
+        $validatedData = $request->validate([
+            'landIds' => 'required|array',
+            'landIds.*' => 'integer',
+            'minimumPrice' => 'required|numeric',
+            'startTime' => 'required|date',
+            'endTime' => 'required|date|after:startTime',
+        ]);
+        DB::beginTransaction();
+        try {
+            $lands = Land::whereIn('id', $validatedData['landIds'])->get();
+            foreach ($lands as $land) {
+                Auction::create([
+                    'land_id' => $land->id,
+                    'owner_id' => $land->owner_id,
+                    'minimum_price' => $validatedData['minimumPrice'],
+                    'start_time' => $validatedData['startTime'],
+                    'end_time' => $validatedData['endTime'],
+                    'status' => 'active',
+                ]);
+            }
+            DB::commit();
+            return response()->json(['message' => 'Auctions created successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to create auctions: ' . $e->getMessage()], 500);
+        }
+    }
+    public function bulkCancelAuctions(Request $request)
+    {
+        $validatedData = $request->validate([
+            'auctionIds' => 'required|array',
+            'auctionIds.*' => 'integer',
+        ]);
+        DB::beginTransaction();
+        try {
+            Auction::whereIn('id', $validatedData['auctionIds'])
+                ->update(['status' => 'canceled']);
+            DB::commit();
+            return response()->json(['message' => 'Auctions canceled successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to cancel auctions: ' . $e->getMessage()], 500);
+        }
+    }
+    public function bulkRemoveAuctions(Request $request)
+    {
+        $validatedData = $request->validate([
+            'auctionIds' => 'required|array',
+            'auctionIds.*' => 'integer',
+        ]);
+        DB::beginTransaction();
+        try {
+            Auction::whereIn('id', $validatedData['auctionIds'])->delete();
+            DB::commit();
+            return response()->json(['message' => 'Auctions removed successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to remove auctions: ' . $e->getMessage()], 500);
+        }
+    }
+    public function getAuctions()
+    {
+        $auctions = Auction::with('land')->paginate(20);
+        return response()->json($auctions);
+    }
+}
+================================================================================
+File: app/Http/Controllers/AdminScratchBoxController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Land;
+use App\Models\ScratchBox;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class AdminScratchBoxController extends Controller
+{
+    public function index()
+    {
+        $scratchBoxes = ScratchBox::with('lands')->paginate(20);
+        return response()->json($scratchBoxes);
+    }
+    public function create(Request $request)
+    {
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'land_ids' => 'required|array',
+            'land_ids.*' => 'integer|exists:lands,id',
+        ]);
+        $lands = Land::whereIn('id', $validatedData['land_ids'])
+            ->where('is_locked', true)
+            ->where('is_in_scratch', false)
+            ->get();
+        if ($lands->count() != count($validatedData['land_ids'])) {
+            return response()->json(['error' => 'Some lands are not valid for scratch box'], 422);
+        }
+        DB::beginTransaction();
+        try {
+            $scratchBox = ScratchBox::create([
+                'name' => $validatedData['name'],
+                'price' => $lands->sum('fixed_price'),
+            ]);
+            $scratchBox->lands()->attach($lands->pluck('id'));
+            $lands->each(function ($land) {
+                $land->update(['is_in_scratch' => true]);
+            });
+            DB::commit();
+            return response()->json(['message' => 'Scratch box created successfully', 'scratch_box' => $scratchBox]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to create scratch box: ' . $e->getMessage()], 500);
+        }
+    }
+    public function destroy($id)
+    {
+        $scratchBox = ScratchBox::findOrFail($id);
+        DB::beginTransaction();
+        try {
+            $scratchBox->lands()->update(['is_in_scratch' => false]);
+            $scratchBox->delete();
+            DB::commit();
+            return response()->json(['message' => 'Scratch box deleted successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to delete scratch box: ' . $e->getMessage()], 500);
+        }
+    }
+    public function getAvailableLands()
+    {
+        $lands = Land::where('is_locked', true)
+            ->where('is_in_scratch', false)
+            ->paginate(20);
+        return response()->json($lands);
+    }
+    public function getAllAvailableLandIds()
+    {
+        $lands = Land::where('is_locked', true)
+            ->where('is_in_scratch', false)
+            ->pluck('id')
+            ->toArray();
+        return response()->json($lands);
+    }
+}
+================================================================================
+File: app/Http/Controllers/AssetController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+class AssetController extends Controller
+{
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        return response()->json(['assets' => $user->assets]);
+    }
+    public function update(Request $request)
+    {
+        $user = $request->user();
+        $validatedData = $request->validate([
+            'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
+            'amount' => 'required|integer',
+            'action' => 'required|in:increase,decrease'
+        ]);
+        $assetType = $validatedData['asset_type'];
+        $amount = $validatedData['amount'];
+        $action = $validatedData['action'];
+        $success = false;
+        if ($action === 'increase') {
+            $success = $user->assets->increase($assetType, $amount);
+        } elseif ($action === 'decrease') {
+            $success = $user->assets->decrease($assetType, $amount);
+        }
+        if ($success) {
+            $user->refresh();
+            return response()->json([
+                'message' => 'Assets updated successfully',
+                'assets' => $user->assets
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Failed to update assets',
+                'assets' => $user->assets
+            ], 400);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/AssetListingController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\AssetListing;
+use App\Models\Asset;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class AssetListingController extends Controller
+{
+    public function index()
+    {
+        $listings = AssetListing::where('is_active', true)->get();
+        return response()->json(['listings' => $listings]);
+    }
+    public function create(Request $request)
+    {
+        $validatedData = $request->validate([
+            'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
+            'amount' => 'required|integer|min:1',
+            'price_in_bnb' => 'required|numeric|min:0',
+        ]);
+        $user = $request->user();
+        $asset = $user->assets()->where('type', $validatedData['asset_type'])->first();
+        if (!$asset || $asset->amount < $validatedData['amount']) {
+            return response()->json(['message' => 'Insufficient assets'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            $listing = AssetListing::create([
+                'user_id' => $user->id,
+                'asset_type' => $validatedData['asset_type'],
+                'amount' => $validatedData['amount'],
+                'price_in_bnb' => $validatedData['price_in_bnb'],
+            ]);
+            $asset->decrement('amount', $validatedData['amount']);
+            DB::commit();
+            return response()->json(['message' => 'Listing created successfully', 'listing' => $listing]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create listing'], 500);
+        }
+    }
+    public function update(Request $request, AssetListing $listing)
+    {
+        if ($listing->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        $validatedData = $request->validate([
+            'price_in_bnb' => 'required|numeric|min:0',
+        ]);
+        $listing->update($validatedData);
+        return response()->json(['message' => 'Listing updated successfully', 'listing' => $listing]);
+    }
+    public function destroy(AssetListing $listing)
+    {
+        if ($listing->user_id !== request()->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        DB::beginTransaction();
+        try {
+            $user = request()->user();
+            $asset = $user->assets()->where('type', $listing->asset_type)->first();
+            if ($asset) {
+                $asset->increment('amount', $listing->amount);
+            } else {
+                Asset::create([
+                    'user_id' => $user->id,
+                    'type' => $listing->asset_type,
+                    'amount' => $listing->amount,
+                ]);
+            }
+            $listing->delete();
+            DB::commit();
+            return response()->json(['message' => 'Listing removed successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to remove listing'], 500);
+        }
+    }
+    public function buy(AssetListing $listing)
+    {
+        $buyer = request()->user();
+        if ($listing->user_id === $buyer->id) {
+            return response()->json(['message' => 'You cannot buy your own listing'], 400);
+        }
+        $buyerBnbAsset = $buyer->assets()->where('type', 'bnb')->first();
+        if (!$buyerBnbAsset || $buyerBnbAsset->amount < $listing->price_in_bnb) {
+            return response()->json(['message' => 'Insufficient BNB balance'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            // Transfer BNB
+            $buyerBnbAsset->decrement('amount', $listing->price_in_bnb);
+            $seller = $listing->user;
+            $sellerBnbAsset = $seller->assets()->where('type', 'bnb')->first();
+            if ($sellerBnbAsset) {
+                $sellerBnbAsset->increment('amount', $listing->price_in_bnb);
+            } else {
+                Asset::create([
+                    'user_id' => $seller->id,
+                    'type' => 'bnb',
+                    'amount' => $listing->price_in_bnb,
+                ]);
+            }
+            // Transfer listed asset
+            $buyerAsset = $buyer->assets()->where('type', $listing->asset_type)->first();
+            if ($buyerAsset) {
+                $buyerAsset->increment('amount', $listing->amount);
+            } else {
+                Asset::create([
+                    'user_id' => $buyer->id,
+                    'type' => $listing->asset_type,
+                    'amount' => $listing->amount,
+                ]);
+            }
+            $listing->delete();
+            DB::commit();
+            return response()->json(['message' => 'Asset purchased successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to complete the purchase'], 500);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/AssetTradeController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\AssetTrade;
+use App\Models\Asset;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class AssetTradeController extends Controller
+{
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $assets = $user->assets()->pluck('amount', 'type')->toArray();
+        return response()->json($assets);
+    }
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'asset_type' => 'required|string|in:gift,ticket,wood,stone,sand,gold',
+            'amount' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+        ]);
+        $user = $request->user();
+        $asset = $user->assets()->where('type', $validatedData['asset_type'])->first();
+        if (!$asset || $asset->amount < $validatedData['amount']) {
+            return response()->json(['message' => 'Insufficient assets'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            $trade = AssetTrade::create([
+                'seller_id' => $user->id,
+                'asset_type' => $validatedData['asset_type'],
+                'amount' => $validatedData['amount'],
+                'price' => $validatedData['price'],
+            ]);
+            $asset->decrement('amount', $validatedData['amount']);
+            DB::commit();
+            return response()->json($trade, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create trade'], 500);
+        }
+    }
+    public function update(Request $request, AssetTrade $trade)
+    {
+        if ($trade->seller_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        $validatedData = $request->validate([
+            'price' => 'required|numeric|min:0',
+        ]);
+        $trade->update($validatedData);
+        return response()->json($trade);
+    }
+    public function destroy(AssetTrade $trade)
+    {
+        if ($trade->seller_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        DB::beginTransaction();
+        try {
+            $asset = $trade->seller->assets()->where('type', $trade->asset_type)->first();
+            $asset->increment('amount', $trade->amount);
+            $trade->delete();
+            DB::commit();
+            return response()->json(['message' => 'Trade cancelled successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to cancel trade'], 500);
+        }
+    }
+    public function buy(AssetTrade $trade, Request $request)
+    {
+        $buyer = $request->user();
+        if ($buyer->id === $trade->seller_id) {
+            return response()->json(['message' => 'You cannot buy your own trade'], 400);
+        }
+        $bnbAsset = $buyer->assets()->where('type', 'bnb')->first();
+        if (!$bnbAsset || $bnbAsset->amount < $trade->price) {
+            return response()->json(['message' => 'Insufficient BNB'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            // Transfer BNB from buyer to seller
+            $bnbAsset->decrement('amount', $trade->price);
+            $trade->seller->assets()->where('type', 'bnb')->increment('amount', $trade->price);
+            // Transfer asset from seller to buyer
+            $buyerAsset = $buyer->assets()->firstOrCreate(['type' => $trade->asset_type], ['amount' => 0]);
+            $buyerAsset->increment('amount', $trade->amount);
+            // Create transaction record
+            $transaction = Transaction::create([
+                'seller_id' => $trade->seller_id,
+                'buyer_id' => $buyer->id,
+                'asset_type' => $trade->asset_type,
+                'amount' => $trade->amount,
+                'price' => $trade->price,
+            ]);
+            // Delete the trade
+            $trade->delete();
+            DB::commit();
+            return response()->json(['message' => 'Trade completed successfully', 'transaction' => $transaction]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to complete trade'], 500);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/AuctionController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Auction;
+use App\Models\AuctionBid;
+use App\Models\Bid;
+use App\Models\Land;
+use App\Models\Transaction;
+use App\Models\User;
+use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+class AuctionController extends Controller
+{
+    public function createAuction(Request $request): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'land_id' => 'required|exists:lands,id',
+            'minimum_price' => 'required|integer|min:100',
+            'duration' => 'required|integer|min:1',
+        ]);
+        $land = Land::findOrFail($validatedData['land_id']);
+        if ($land->owner_id !== Auth::id()) {
+            return response()->json(['error' => 'You do not own this land'], 403);
+        }
+        if ($land->is_for_sale || $land->fixed_price > 0 || $land->auctions()->where('is_active', true)->exists()) {
+            return response()->json(['error' => 'Land is not eligible for auction'], 400);
+        }
+        $endTime = now()->addHours($validatedData['duration']);
+        $auction = new Auction([
+            'land_id' => $validatedData['land_id'],
+            'minimum_price' => $validatedData['minimum_price'],
+            'end_time' => $endTime,
+            'start_time' => now(),
+            'owner_id' => $land->owner_id,
+        ]);
+        $land->auctions()->save($auction);
+        return response()->json(['message' => 'Auction created successfully', 'auction' => $auction], 201);
+    }
+    public function placeBid(Request $request, $auctionId): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'amount' => 'required|integer|min:100',
+        ]);
+        $auction = Auction::findOrFail($auctionId);
+        $user = User::find(Auth::user()->id);
+        if (!$auction->is_active || $auction->end_time->isPast()) {
+            return response()->json(['error' => 'Auction is not active'], 400);
+        }
+        if ($auction->land->owner_id === $user->id) {
+            return response()->json(['error' => 'You cannot bid on your own auction'], 403);
+        }
+        $minBidAmount = $auction->highest_bid
+            ? $auction->highest_bid * 1.05
+            : max($auction->minimum_price, $auction->highest_bid ?? 0);
+        if ($validatedData['amount'] < $minBidAmount) {
+            return response()->json(['error' => 'Bid amount is too low'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            // Check if the user already has a bid on this auction
+            $existingBid = $auction->bids()->where('user_id', $user->id)->orderBy('amount', 'desc')->first();
+            if ($existingBid) {
+                // Unlock the previous bid amount
+                if (!$user->unlockCp($existingBid->amount)) {
+                    throw new \Exception('Failed to unlock previous bid amount');
+                }
+            }
+            // Lock the new bid amount
+            if (!$user->lockCp($validatedData['amount'])) {
+                throw new \Exception('Insufficient CP to place bid');
+            }
+            $bid = new AuctionBid([
+                'auction_id' => $auction->id,
+                'user_id' => $user->id,
+                'amount' => $validatedData['amount'],
+            ]);
+            $bid->save();
+            $previousHighestBid = $auction->highestBid();
+            if ($previousHighestBid && $previousHighestBid->user_id !== $user->id) {
+                $previousHighestBid->user->unlockCp($previousHighestBid->amount);
+            }
+            DB::commit();
+            return response()->json(['message' => 'Bid placed successfully', 'bid' => $bid], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if (isset($existingBid)) {
+                $user->lockCp($existingBid->amount);
+            }
+            if (isset($validatedData['amount'])) {
+                $user->unlockCp($validatedData['amount']);
+            }
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    public function processAuction2(): JsonResponse
+    {
+        $endedAuctions = Auction::where('status', 'active')
+            ->where('end_time', '<=', now())
+            ->with(['land', 'bids.user'])
+            ->get();
+        $processedCount = 0;
+        foreach ($endedAuctions as $auction) {
+            DB::beginTransaction();
+            try {
+                // Update auction status
+                $auction->status = 'completed';
+                $auction->save();
+                $highestBid = $auction->bids()->orderBy('amount', 'desc')->first();
+                if ($highestBid) {
+                    $land = $auction->land;
+                    $seller = User::findOrFail($auction->owner_id);
+                    $buyer = $highestBid->user;
+                    // Transfer land ownership
+                    $land->owner_id = $buyer->id;
+                    $land->fixed_price = 0;
+                    $land->save();
+                    // Transfer CP
+                    if (!$seller->addCp($highestBid->amount)) {
+                        throw new \Exception("Failed to add CP to seller");
+                    }
+                    if (!$buyer->removeCp($highestBid->amount)) {
+                        throw new \Exception("Failed to remove CP from buyer");
+                    }
+                    // Create transaction record
+                    Transaction::create([
+                        'land_id' => $land->id,
+                        'seller_id' => $seller->id,
+                        'buyer_id' => $buyer->id,
+                        'price' => $highestBid->amount,
+                    ]);
+                    // Unlock CP for other bidders
+                    $otherBids = $auction->bids()->where('user_id', '!=', $buyer->id)->get();
+                    foreach ($otherBids as $bid) {
+                        if (!$bid->user->unlockCp($bid->amount)) {
+                            throw new \Exception("Failed to unlock CP for user {$bid->user_id}");
+                        }
+                    }
+                } else {
+                    // No bids, just update the land
+                    $land = $auction->land;
+                    $land->fixed_price = 0;
+                    $land->save();
+                }
+                DB::commit();
+                $processedCount++;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error processing auction ' . $auction->id . ': ' . $e->getMessage());
+            }
+        }
+        return response()->json([
+            'message' => 'Auctions processed successfully',
+            'processed_count' => $processedCount
+        ]);
+    }
+    public function processAuction(): JsonResponse
+    {
+        $endedAuctions = Auction::where('status', 'active')
+            ->where('end_time', '<=', now())
+            ->with(['land', 'bids.user'])
+            ->get();
+        $processedCount = 0;
+        foreach ($endedAuctions as $auction) {
+            DB::beginTransaction();
+            try {
+                // Update auction status
+                $auction->status = 'done';
+                $auction->save();
+                $highestBid = $auction->bids()->orderBy('amount', 'desc')->first();
+                if ($highestBid) {
+                    $land = $auction->land;
+                    $seller = User::findOrFail($auction->owner_id);
+                    $buyer = $highestBid->user;
+                    // Transfer land ownership
+                    $land->owner_id = $buyer->id;
+                    $land->fixed_price = 0;
+                    $land->save();
+                    // Transfer CP
+                    if (!$seller->addCp($highestBid->amount)) {
+                        throw new \Exception("Failed to add CP to seller");
+                    }
+                    if (!$buyer->removeCp($highestBid->amount)) {
+                        throw new \Exception("Failed to remove CP from buyer");
+                    }
+                    // Create transaction record
+                    Transaction::create([
+                        'land_id' => $land->id,
+                        'seller_id' => $seller->id,
+                        'buyer_id' => $buyer->id,
+                        'price' => $highestBid->amount,
+                    ]);
+                    // Unlock CP for other bidders
+                    $otherBids = $auction->bids()->where('user_id', '!=', $buyer->id)->get();
+                    foreach ($otherBids as $bid) {
+                        if (!$bid->user->unlockCp($bid->amount)) {
+                            throw new \Exception("Failed to unlock CP for user {$bid->user_id}");
+                        }
+                    }
+                } else {
+                    // No bids, just update the land
+                    $land = $auction->land;
+                    $land->fixed_price = 0;
+                    $land->save();
+                }
+                DB::commit();
+                $processedCount++;
+                // Log successful processing
+                Log::info("Auction {$auction->id} processed successfully. Status: " . ($highestBid ? "Sold" : "No bids"));
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error("Error processing auction {$auction->id}: " . $e->getMessage());
+            }
+        }
+        // Process any canceled auctions
+        $canceledAuctions = Auction::where('status', 'canceled')
+            ->where('end_time', '<=', now())
+            ->with('land')
+            ->get();
+        foreach ($canceledAuctions as $canceledAuction) {
+            DB::beginTransaction();
+            try {
+                $land = $canceledAuction->land;
+                $land->fixed_price = 0;
+                $land->save();
+                $canceledAuction->status = 'done';
+                $canceledAuction->save();
+                DB::commit();
+                $processedCount++;
+                Log::info("Canceled auction {$canceledAuction->id} processed successfully.");
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error("Error processing canceled auction {$canceledAuction->id}: " . $e->getMessage());
+            }
+        }
+        return response()->json([
+            'message' => 'Auctions processed successfully',
+            'processed_count' => $processedCount,
+            'ended_auctions_count' => $endedAuctions->count(),
+            'canceled_auctions_count' => $canceledAuctions->count(),
+        ]);
+    }
+    public function cancelAuction(Request $request, $auctionId): JsonResponse
+    {
+        $auction = Auction::findOrFail($auctionId);
+        $user = Auth::user();
+        if ($auction->owner_id !== $user->id) {
+            return response()->json(['error' => 'You are not the owner of this auction'], 403);
+        }
+        if ($auction->status !== 'active') {
+            return response()->json(['error' => 'This auction is not active'], 400);
+        }
+        if ($auction->bids()->count() > 0) {
+            return response()->json(['error' => 'Cannot cancel auction with existing bids'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            $auction->status = 'canceled';
+            $auction->save();
+            $land = $auction->land;
+            $land->fixed_price = 0;
+            $land->save();
+            DB::commit();
+            return response()->json(['message' => 'Auction canceled successfully'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to cancel auction: ' . $e->getMessage()], 500);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/Controller.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+abstract class Controller
+{
+    //
+}
+================================================================================
+File: app/Http/Controllers/CurrencyController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Currency;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+class CurrencyController extends Controller
+{
+    public function getBalance($userId, $type)
+    {
+        $currency = Currency::where('user_id', $userId)
+            ->where('type', $type)
+            ->first();
+        if (!$currency) {
+            return response()->json(['message' => 'Currency not found'], 404);
+        }
+        return response()->json($currency);
+    }
+    public function lock(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'type' => 'required|in:cp,meta',
+            'amount' => 'required|integer|min:1',
+        ]);
+        return DB::transaction(function () use ($request) {
+            $currency = Currency::where('user_id', $request->user_id)
+                ->where('type', $request->type)
+                ->lockForUpdate()
+                ->first();
+            if (!$currency || $currency->getAvailableAmount() < $request->amount) {
+                return response()->json(['message' => 'Insufficient funds'], 400);
+            }
+            $currency->locked_amount += $request->amount;
+            $currency->save();
+            return response()->json($currency);
+        });
+    }
+    public function unlock(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'type' => 'required|in:cp,meta,bnb',
+            'amount' => 'required|integer|min:1',
+        ]);
+        return DB::transaction(function () use ($request) {
+            $currency = Currency::where('user_id', $request->user_id)
+                ->where('type', $request->type)
+                ->lockForUpdate()
+                ->first();
+            if (!$currency || $currency->locked_amount < $request->amount) {
+                return response()->json(['message' => 'Invalid unlock amount'], 400);
+            }
+            $currency->locked_amount -= $request->amount;
+            $currency->save();
+            return response()->json($currency);
+        });
+    }
+    public function add(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'type' => 'required|in:cp,meta',
+            'amount' => 'required|integer',
+        ]);
+        return DB::transaction(function () use ($request) {
+            $currency = Currency::firstOrNew([
+                'user_id' => $request->user_id,
+                'type' => $request->type,
+            ]);
+            $currency->amount += $request->amount;
+            $currency->save();
+            return response()->json($currency);
+        });
+    }
+    public function subtract(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'type' => 'required|in:cp,meta',
+            'amount' => 'required|integer|min:1',
+        ]);
+        return DB::transaction(function () use ($request) {
+            $currency = Currency::where('user_id', $request->user_id)
+                ->where('type', $request->type)
+                ->lockForUpdate()
+                ->first();
+            if (!$currency || $currency->getAvailableAmount() < $request->amount) {
+                return response()->json(['message' => 'Insufficient funds'], 400);
+            }
+            $currency->amount -= $request->amount;
+            $currency->save();
+            return response()->json($currency);
+        });
+    }
+}
+================================================================================
+File: app/Http/Controllers/LandController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Land;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+class LandController extends Controller
+{
+    private const MIN_ZOOM_LEVEL = 4; // Lowered from 5 to 4
+    public function all(): JsonResponse
+    {
+        $lands = Land::all();
+        return response()->json($lands);
+    }
+    public function index(Request $request): JsonResponse
+    {
+        $bounds = $request->input('bounds');
+        $zoom = $request->input('zoom');
+        if (!$zoom || $zoom < self::MIN_ZOOM_LEVEL) {
+            return response()->json([]);
+        }
+        $query = Land::with('owner:id,nickname');
+        if ($bounds) {
+            $query->whereBetween('latitude', [$bounds['south'], $bounds['north']])
+                ->whereBetween('longitude', [$bounds['west'], $bounds['east']]);
+            $limit = $this->getLimitByZoom($zoom);
+            $query->limit($limit);
+        }
+        $lands = $query->get();
+        return response()->json($lands);
+    }
+    public function getMarketplaceLands(Request $request): JsonResponse
+    {
+        $perPage = $request->input('per_page', 20); 
+        $sortBy = $request->input('sort_by', 'fixed_price'); // Default sort by price
+        $sortOrder = $request->input('sort_order', 'asc'); // Default ascending order
+        $userLandsOnly = $request->boolean('user_lands_only', false); // New flag to filter user lands
+        $showOnlyForSale = $request->boolean('for_sale', false); // Flag to show only lands for sale
+        $search = $request->input('search', ''); // Search term
+        $query = Land::with('owner:id,nickname');
+        // Filter user lands if the flag is set
+        if ($userLandsOnly) {
+            $user = Auth::user();
+            $query->where('owner_id', $user->id);
+        }
+        // Filter lands for sale if the flag is set
+        if ($showOnlyForSale) {
+            $query->whereNotNull('fixed_price')->where('fixed_price', '>', 0);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('full_id', 'like', "%{$search}%")
+                    ->orWhere('region', 'like', "%{$search}%")
+                    ->orWhere('zone', 'like', "%{$search}%");
+            });
+        }
+        $query->orderBy($sortBy, $sortOrder);
+        $lands = $query->paginate($perPage);
+        return response()->json([
+            'data' => $lands->items(),
+            'current_page' => $lands->currentPage(),
+            'last_page' => $lands->lastPage(),
+            'per_page' => $lands->perPage(),
+            'total' => $lands->total(),
+        ]);
+    }
+    public function show($id): JsonResponse
+    {
+        $land = Land::with([
+            'owner',
+            'transactions',
+            'offers',
+            'activeAuction.bids.user'
+        ])->findOrFail($id);
+        $response = $land->toArray();
+        $response['active_auction'] = $land->formatted_active_auction;
+        $response['has_active_auction'] = $land->has_active_auction;
+        $response['minimum_bid'] = $land->minimum_bid;
+        return response()->json($response);
+    }
+    public function getUserLands()
+    {
+        $user = Auth::user();
+        $lands = Land::where('owner_id', $user->id)->get();
+        return response()->json($lands);
+    }
+    private function getLimitByZoom(float $zoom): int
+    {
+        if ($zoom < 8) {
+            return 400;  // Doubled from 200
+        } elseif ($zoom < 12) {
+            return 1500; // Doubled from 750
+        } elseif ($zoom < 15) {
+            return 3000; // Doubled from 1500
+        } else {
+            return 4000; // Doubled from 2000
+        }
+    }
+    public function setPrice(Request $request, $id): JsonResponse
+    {
+        $land = Land::findOrFail($id);
+        if ($land->owner_id !== Auth::id()) {
+            return response()->json(['error' => 'You do not own this land'], 403);
+        }
+        $validatedData = $request->validate([
+            'price' => 'required|numeric|min:100|max:100000000000',
+        ]);
+        $land->fixed_price = $validatedData['price'];
+        $land->save();
+        return response()->json([
+            'message' => 'Price set successfully',
+            'land' => $land
+        ]);
+    }
+    public function updatePrice(Request $request, $id): JsonResponse
+    {
+        $land = Land::findOrFail($id);
+        // Check if the authenticated user owns the land
+        if ($land->owner_id !== Auth::id()) {
+            return response()->json(['error' => 'You do not own this land'], 403);
+        }
+        $validatedData = $request->validate([
+            'price' => 'required|numeric|min:100|max:100000000000',
+        ]);
+        $land->fixed_price = $validatedData['price'];
+        $land->save();
+        return response()->json([
+            'message' => 'Price updated successfully',
+            'land' => $land
+        ]);
+    }
+    public function cancelSell($id): JsonResponse
+    {
+        $land = Land::findOrFail($id);
+        // Check if the authenticated user owns the land
+        if ($land->owner_id !== Auth::id()) {
+            return response()->json(['error' => 'You do not own this land'], 403);
+        }
+        $land->fixed_price = null;
+        $land->save();
+        return response()->json([
+            'message' => 'Land removed from sale',
+            'land' => $land
+        ]);
+    }
+}
+================================================================================
+File: app/Http/Controllers/LandImportController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Land;
+use App\Models\LandVersion;
+use geoPHP;
+use PDO;
+class LandImportController extends Controller
+{
+    private function processFeatue($feature)
+    {
+        $coordinates = $feature->geometry->coordinates;
+        $firstCoordinate = $feature->geometry->type === 'MultiPolygon' ? $coordinates[0][0][0] : $coordinates[0][0];
+        $geom = geoPHP::load(json_encode($feature->geometry), 'json');
+        $areaInSquareMeters = $geom->getArea() * 111319 * 111319;
+        $centroid = $geom->getCentroid();
+        Land::create([
+            'full_id' => $feature->properties->full_id ?? null,
+            'region' => $feature->properties->region ?? null,
+            'zone' => $feature->properties->zone ?? null,
+            'coordinates' => json_encode($feature->geometry),
+            'latitude' => $firstCoordinate[1],
+            'longitude' => $firstCoordinate[0],
+            'center_point' => json_encode([
+                'longitude' => $centroid->getX(),
+                'latitude' => $centroid->getY()
+            ]),
+            'size' => round($areaInSquareMeters, 2),
+            'owner_id' => 1,
+            'fixed_price' => null,
+            'is_locked' => false,
+            'building_id' => 0,
+        ]);
+    }
+    private function validateGeoJSON($data)
+    {
+        if (!isset($data->type) || $data->type !== 'FeatureCollection') {
+            return "Missing or incorrect 'type' property";
+        }
+        if (!isset($data->features) || !is_array($data->features)) {
+            return "Missing or invalid 'features' array";
+        }
+        foreach ($data->features as $index => $feature) {
+            if (!isset($feature->type) || $feature->type !== 'Feature') {
+                return "Invalid feature type at index $index";
+            }
+            if (!isset($feature->properties) || !is_object($feature->properties)) {
+                return "Missing or invalid 'properties' at feature index $index";
+            }
+            if (!isset($feature->geometry) || !is_object($feature->geometry)) {
+                return "Missing or invalid 'geometry' at feature index $index";
+            }
+            if (!isset($feature->geometry->type) || !isset($feature->geometry->coordinates)) {
+                return "Invalid geometry structure at feature index $index";
+            }
+        }
+        return true;
+    }
+    public function getVersion($id)
+    {
+        $version = LandVersion::findOrFail($id);
+        return response()->json($version);
+    }
+    public function deleteVersion($id)
+    {
+        try {
+            $version = LandVersion::findOrFail($id);
+            $version->delete();
+            if ($version->is_active) {
+                $this->updateLandsTable();
+            }
+            return response()->json(['message' => 'Version deleted successfully'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Delete failed: ' . $e->getMessage()], 500);
+        }
+    }
+    private function updateLandsTable()
+    {
+        try {
+            DB::statement('LOCK TABLES lands WRITE, land_versions READ');
+            DB::table('lands')->truncate();
+            $activeVersions = LandVersion::where('is_active', true)->get();
+            foreach ($activeVersions as $version) {
+                $data = json_decode($version->data);
+                foreach ($data->features as $feature) {
+                    $this->processFeatue($feature);
+                }
+            }
+        } catch (\Exception $e) {
+            throw $e;
+        } finally {
+            DB::statement('UNLOCK TABLES');
+        }
+    }
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file',
+            'file_name' => 'required|string|max:255',
+            'version_name' => 'required|string|max:255',
+        ]);
+        $file = $request->file('file');
+        $jsonContents = file_get_contents($file->path());
+        $data = json_decode($jsonContents);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return response()->json(['error' => 'Invalid JSON format: ' . json_last_error_msg()], 400);
+        }
+        $validationResult = $this->validateGeoJSON($data);
+        if ($validationResult !== true) {
+            return response()->json(['error' => 'Invalid GeoJSON format: ' . $validationResult], 400);
+        }
+        try {
+            LandVersion::create([
+                'data' => $jsonContents,
+                'file_name' => $request->file_name,
+                'version_name' => $request->version_name,
+                'is_active' => false,
+                'is_locked' => false,
+            ]);
+            return response()->json(['message' => 'Import successful'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+    }
+    public function getVersions()
+    {
+        $versions = LandVersion::select('id', 'file_name', 'version_name', 'is_active', 'is_locked', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        if ($versions->isEmpty()) {
+            return response()->json(['message' => 'No versions found'], 404);
+        }
+        return response()->json($versions);
+    }
+    public function updateActiveVersions(Request $request)
+    {
+        $request->validate([
+            'active_versions' => 'required|array',
+            'active_versions.*' => 'integer|exists:land_versions,id',
+        ]);
+        DB::beginTransaction();
+        try {
+            LandVersion::query()->update(['is_active' => false]);
+            LandVersion::whereIn('id', $request->active_versions)->update(['is_active' => true]);
+            Land::truncate();
+            $activeVersions = LandVersion::where('is_active', true)->get();
+            foreach ($activeVersions as $version) {
+                $data = json_decode($version->data);
+                foreach ($data->features as $feature) {
+                    $this->processFeatue($feature);
+                }
+            }
+            DB::commit();
+            return response()->json(['message' => 'Active versions updated successfully'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Update failed: ' . $e->getMessage()], 500);
+        }
+    }
+    public function lockLands($versionId)
+    {
+        DB::beginTransaction();
+        try {
+            $version = LandVersion::findOrFail($versionId);
+            $data = json_decode($version->data);
+            if (!$data || !isset($data->features)) {
+                throw new \Exception("Invalid data format in version");
+            }
+            $fullIds = collect($data->features)
+                ->pluck('properties.full_id')
+                ->filter()
+                ->values()
+                ->toArray();
+            if (empty($fullIds)) {
+                throw new \Exception("No valid full_id found in the version data");
+            }
+            // Modify this query to only update lands with owner_id 1
+            $affectedRows = Land::whereIn('full_id', $fullIds)
+                ->where('owner_id', 1)
+                ->update(['is_locked' => true]);
+            if ($affectedRows == 0) {
+                throw new \Exception("No lands were updated. Make sure the lands exist in the database and belong to owner_id 1.");
+            }
+            $version->is_locked = true;
+            $version->save();
+            DB::commit();
+            return response()->json(['message' => 'Lands locked successfully', 'affected_rows' => $affectedRows], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Lock failed: ' . $e->getMessage()], 500);
+        }
+    }
+    public function unlockLands($versionId)
+    {
+        DB::beginTransaction();
+        try {
+            $version = LandVersion::findOrFail($versionId);
+            $data = json_decode($version->data);
+            if (!$data || !isset($data->features)) {
+                throw new \Exception("Invalid data format in version");
+            }
+            $fullIds = collect($data->features)
+                ->pluck('properties.full_id')
+                ->filter()
+                ->values()
+                ->toArray();
+            if (empty($fullIds)) {
+                throw new \Exception("No valid full_id found in the version data");
+            }
+            $affectedRows = Land::whereIn('full_id', $fullIds)->update(['is_locked' => false]);
+            if ($affectedRows == 0) {
+                throw new \Exception("No lands were updated. Make sure the lands exist in the database.");
+            }
+            $version->is_locked = false;
+            $version->save();
+            DB::commit();
+            return response()->json(['message' => 'Lands unlocked successfully', 'affected_rows' => $affectedRows], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Unlock failed: ' . $e->getMessage()], 500);
+        }
+    }
+    public function toggleActive($id)
+    {
+        try {
+            DB::beginTransaction();
+            $version = LandVersion::lockForUpdate()->findOrFail($id);
+            $oldState = $version->is_active;
+            $version->is_active = !$oldState;
+            $version->save();
+            DB::commit();
+            if ($version->is_active) {
+                $this->updateLandsTable();
+            }
+            return response()->json([
+                'message' => 'Version active status toggled successfully',
+                'is_active' => $version->is_active
+            ], 200);
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            return response()->json(['error' => 'Toggle failed: ' . $e->getMessage()], 500);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/OfferController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Land;
+use App\Models\Offer;
+use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+class OfferController extends Controller
+{
+    public function getOffersByLand($landId): JsonResponse
+    {
+        $user = Auth::user();
+        $land = Land::findOrFail($landId);
+        $offers = Offer::where('land_id', $landId)
+            ->with('user:id,nickname')
+            ->select('id', 'user_id', 'price', 'created_at')
+            ->orderBy('price', 'desc')
+            ->get();
+        $highest_offer = $offers->first();
+        $user_offer = $offers->firstWhere('user_id', $user->id);
+        $formattedOffers = $offers->map(function ($offer) {
+            return [
+                $offer
+            ];
+        });
+        return response()->json([
+            'offers' => $formattedOffers,
+            'highest_offer' => $highest_offer ? $highest_offer->price : null,
+            'user_offer' => $user_offer ? [
+                'id' => $user_offer->id,
+                'offer' => $user_offer->price,
+                'date' => $user_offer->created_at->timestamp * 1000,
+            ] : null,
+            'land_owner' => $land->owner_id,
+        ]);
+    }
+    public function submitOffer(Request $request): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'land_id' => 'required|exists:lands,id',
+            'price' => 'required|numeric|min:0',
+        ]);
+        $user = User::where('id', Auth::user()->id)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        try {
+            DB::beginTransaction();
+            $offer = new Offer([
+                'land_id' => $validatedData['land_id'],
+                'user_id' => $user->id,
+                'price' => $validatedData['price'],
+            ]);
+            $offer->save();
+            DB::commit();
+            return response()->json([
+                'message' => 'Offer submitted successfully',
+                'offer' => [
+                    'id' => $offer->id,
+                    'offer' => $offer->price,
+                    'user' => $user->nickname ?? 'Unknown',
+                    'date' => $offer->created_at->timestamp * 1000,
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to submit offer: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+    public function deleteOffer(Request $request, $offerId): JsonResponse
+    {
+        $user = User::where('id', Auth::user()->id)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        $offer = Offer::findOrFail($offerId);
+        if ($offer->user_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        try {
+            DB::beginTransaction();
+            $offer->delete();
+            DB::commit();
+            return response()->json(['message' => 'Offer deleted successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to delete offer: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to delete offer'], 500);
+        }
+    }
+    public function updateOffer(Request $request, $offerId): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'price' => 'required|numeric|min:0',
+        ]);
+        $user = User::where('id', Auth::user()->id)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        $offer = Offer::findOrFail($offerId);
+        if ($offer->user_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        try {
+            DB::beginTransaction();
+            $offer->price = $validatedData['price'];
+            $offer->save();
+            DB::commit();
+            return response()->json([
+                'message' => 'Offer updated successfully',
+                'offer' => [
+                    'id' => $offer->id,
+                    'offer' => $offer->price,
+                    'user' => $user->nickname ?? 'Unknown',
+                    'date' => $offer->updated_at->timestamp * 1000,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to update offer: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+    public function getOffersByUser()
+    {
+        $user = Auth::user();
+        $offers = Offer::where('user_id', $user->id)
+            ->with('land:id,region,center_point')
+            ->get();
+        return response()->json($offers);
+    }
+}
+================================================================================
+File: app/Http/Controllers/QuestController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Quest;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+class QuestController extends Controller
+{
+    public function index()
+    {
+        $quests = Quest::all();
+        return response()->json($quests);
+    }
+    public function show(Quest $quest)
+    {
+        return response()->json($quest);
+    }
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'rewards' => 'required|array',
+            'costs' => 'nullable|array',
+        ]);
+        $quest = Quest::create($validatedData);
+        return response()->json($quest, 201);
+    }
+    public function update(Request $request, Quest $quest)
+    {
+        $validatedData = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'rewards' => 'sometimes|required|array',
+            'costs' => 'nullable|array',
+        ]);
+        $quest->update($validatedData);
+        return response()->json($quest);
+    }
+    public function destroy(Quest $quest)
+    {
+        $quest->delete();
+        return response()->json(null, 204);
+    }
+    public function complete(Request $request)
+    {
+        $quest_id = $request->input('quest_id');
+        Log::info('Starting quest completion for user ' . Auth::id() . ' and quest ' . $quest_id);
+        return DB::transaction(function () use ($quest_id) {
+            $user = Auth::user();
+            if (!$user) {
+                Log::error('No authenticated user found');
+                return response()->json(['message' => 'User not authenticated'], 401);
+            }
+            $quest = Quest::find($quest_id);
+            if (!$quest) {
+                Log::error('Quest not found: ' . $quest_id);
+                return response()->json(['message' => 'Quest not found'], 404);
+            }
+            Log::info('Checking if quest is already completed');
+            $completed = $user->quests()->where('quest_id', $quest_id)->wherePivot('completed_at', '!=', null)->exists();
+            if ($completed) {
+                Log::info('Quest already completed');
+                return response()->json(['message' => 'Quest already completed'], 400);
+            }
+            // Check and deduct costs
+            if ($quest->costs) {
+                Log::info('Checking and deducting costs');
+                foreach ($quest->costs as $cost) {
+                    $deducted = $user->updateAsset($cost['type'], -$cost['amount']);
+                    if (!$deducted) {
+                        Log::error('Failed to deduct cost from user');
+                        return response()->json(['message' => 'Insufficient resources to complete quest'], 400);
+                    }
+                }
+            }
+            Log::info('Attaching quest to user');
+            $user->quests()->attach($quest_id, ['completed_at' => now()]);
+            // Award rewards
+            if ($quest->rewards) {
+                Log::info('Processing rewards');
+                foreach ($quest->rewards as $reward) {
+                    Log::info('Adding reward: ' . json_encode($reward));
+                    $rewardAdded = $user->updateAsset($reward['type'], $reward['amount']);
+                    if (!$rewardAdded) {
+                        Log::error('Failed to add reward to user');
+                        throw new \Exception('Failed to add reward to user');
+                    }
+                }
+            }
+            Log::info('Quest completed successfully');
+            return response()->json(['message' => 'Quest completed and rewards added'], 200);
+        });
+    }
+    public function userQuests(Request $request)
+    {
+        $user = Auth::user();
+        $quests = $user->quests()->with('pivot')->get();
+        return response()->json($quests);
+    }
+    public function availableQuests(Request $request)
+    {
+        $user = Auth::user();
+        $completedQuestIds = $user->quests()->pluck('quests.id');
+        $availableQuests = Quest::whereNotIn('id', $completedQuestIds)->get();
+        return response()->json($availableQuests);
+    }
+}
+================================================================================
+File: app/Http/Controllers/ScratchBoxController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\ScratchBox;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+class ScratchBoxController extends Controller
+{
+    public function index()
+    {
+        $availableScratchBoxes = ScratchBox::whereIn('status', ['available', 'sold'])->get();
+        $ownedScratchBoxes = ScratchBox::whereIn('status', ['sold', 'opened'])
+            ->whereHas('lands', function ($query) {
+                $query->where('owner_id', Auth::id());
+            })
+            ->get();
+        return response()->json([
+            'available' => $availableScratchBoxes,
+            'owned' => $ownedScratchBoxes
+        ]);
+    }
+    public function buy(Request $request, $id)
+    {
+        $user = Auth::user();
+        $scratchBox = ScratchBox::findOrFail($id);
+        if ($scratchBox->status !== 'available') {
+            return response()->json(['error' => 'This scratch box is not available for purchase.'], 400);
+        }
+        if (!$user->hasSufficientBnb($scratchBox->price)) {
+            return response()->json(['error' => 'Insufficient BNB balance.'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            if (!$user->removeBnb($scratchBox->price)) {
+                throw new \Exception('Failed to deduct BNB from user balance.');
+            }
+            $scratchBox->update(['status' => 'sold']);
+            // Add the scratch box to the user's assets
+            $user->assets()->create([
+                'type' => 'scratch_box',
+                'amount' => $scratchBox->id
+            ]);
+            DB::commit();
+            return response()->json(['message' => 'Scratch box purchased successfully.', 'scratch_box' => $scratchBox]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to purchase scratch box: ' . $e->getMessage()], 500);
+        }
+    }
+    public function open($id)
+    {
+        $user = Auth::user();
+        $scratchBox = ScratchBox::findOrFail($id);
+        if ($scratchBox->status !== 'sold') {
+            return response()->json(['error' => 'This scratch box is not available for opening.'], 400);
+        }
+        DB::beginTransaction();
+        try {
+            $lands = $scratchBox->open($user);
+            DB::commit();
+            return response()->json([
+                'message' => 'Scratch box opened successfully.',
+                'lands' => $lands
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to open scratch box: ' . $e->getMessage()], 500);
+        }
+    }
+    public function available()
+    {
+        $availableScratchBoxes = ScratchBox::whereIn('status', ['available', 'sold'])->get();
+        return response()->json($availableScratchBoxes);
+    }
+    public function owned()
+    {
+        $user = Auth::user();
+        $ownedScratchBoxes = ScratchBox::whereIn('status', ['sold', 'opened'])
+            ->whereHas('assets', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->where('type', 'scratch_box');
+            })
+            ->get();
+        return response()->json($ownedScratchBoxes);
+    }
+}
+================================================================================
+File: app/Http/Controllers/TransactionController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Models\Auction;
+use App\Models\Land;
+use App\Models\Offer;
+use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+class TransactionController extends Controller
+{
+    public function acceptOffer($offerId): JsonResponse
+    {
+        $offer = Offer::findOrFail($offerId);
+        $land = $offer->land;
+        $buyer = $offer->user;
+        $seller = User::findOrFail($land->owner_id);
+        if (Auth::id() !== $seller->id) {
+            return response()->json(['error' => 'You are not authorized to accept this offer.'], 403);
+        }
+        if ($buyer->id === $seller->id) {
+            return response()->json(['error' => 'You cannot accept your own offer.'], 400);
+        }
+        try {
+            DB::transaction(function () use ($land, $buyer, $seller, $offer) {
+                // Transfer ownership
+                $land->update([
+                    'owner_id' => $buyer->id,
+                    'fixed_price' => 0,
+                ]);
+                // Transfer Bnb
+                $buyer->unlockBnb($offer->price);
+                $buyer->RemoveBnb($offer->price);
+                $seller->addBnb($offer->price);
+                // Create transaction record
+                Transaction::create([
+                    'land_id' => $land->id,
+                    'seller_id' => $seller->id,
+                    'buyer_id' => $buyer->id,
+                    'price' => $offer->price,
+                ]);
+                // Mark offer as accepted
+                $offer->update(['is_accepted' => true]);
+                // Cancel all other offers for this land
+                $land->offers()->where('id', '!=', $offer->id)->get()->each(function ($otherOffer) {
+                    $otherOffer->user->unlockBnb($otherOffer->price);
+                    $otherOffer->delete();
+                });
+            });
+            return response()->json([
+                'message' => 'Offer accepted successfully.',
+                'land' => $land->fresh()->load('owner'),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    public function buyLand(Request $request, $landId)
+    {
+        $land = Land::findOrFail($landId);
+        $buyer = User::find(Auth::user()->id);
+        $seller = User::findOrFail($land->owner_id);
+        if (!$land->is_for_sale) {
+            return response()->json(['message' => 'This land is not for sale.'], 400);
+        }
+        if ($land->owner_id === $buyer->id) {
+            return response()->json(['message' => 'You cannot buy your own land.'], 400);
+        }
+        if (!$buyer->hasSufficientBnb($land->fixed_price)) {
+            return response()->json(['message' => 'Insufficient Bnb to purchase this land.'], 400);
+        }
+        try {
+            DB::transaction(function () use ($land, $buyer, $seller) {
+                $buyer->removeBnb($land->fixed_price);
+                $seller->addBnb($land->fixed_price);
+                $land->update([
+                    'owner_id' => $buyer->id,
+                    'fixed_price' => 0,
+                ]);
+                Transaction::create([
+                    'land_id' => $land->id,
+                    'seller_id' => $seller->id,
+                    'buyer_id' => $buyer->id,
+                    'price' => $land->fixed_price,
+                ]);
+                // Cancel buyer's offers for this land and unlock their Bnb
+                $buyer->offers()->where('land_id', $land->id)->get()->each(function ($offer) {
+                    $offer->delete(); // This will trigger the deleted event in the Offer model, which unlocks the Bnb
+                });
+                // Cancel all other offers for this land
+                $land->offers()->where('user_id', '!=', $buyer->id)->delete();
+            });
+            return response()->json([
+                'message' => 'Land purchased successfully.',
+                'land' => $land->fresh()->load('owner'),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+}
+================================================================================
+File: app/Http/Controllers/UserController.php
+================================================================================
+Content:
+<?php
+namespace App\Http\Controllers;
+use App\Http\Requests\RecoverAddressRequest;
+use App\Models\Asset;
+use App\Models\User;
+use Auth;
+use DB;
+use Illuminate\Http\Request;
+use SWeb3\Accounts;
+use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
+class UserController extends Controller
+{
+    private function authenticateWithToken($token, $address)
+    {
+        $tokenModel = PersonalAccessToken::findToken($token);
+        if (!$tokenModel) {
+            return response()->json(['error' => 'Invalid token'], 401);
+        }
+        $user = $tokenModel->tokenable;
+        if (strtolower($user->address) !== strtolower($address)) {
+            return response()->json(['error' => 'Token does not match the provided address', 'provider_address' => strtolower($address)], 401);
+        }
+        if ($this->isTokenExpired($tokenModel)) {
+            $tokenModel->delete();
+            return response()->json(['error' => 'Token has expired'], 401);
+        }
+        return $this->respondWithToken($token, $user);
+    }
+    private function authenticateWithSignature(RecoverAddressRequest $request)
+    {
+        if (!$this->isSignatureVerified($request)) {
+            return response()->json(['error' => 'Invalid signature'], 401);
+        }
+        try {
+            $user = User::firstOrCreate(['address' => strtolower($request->address)]);
+            return $this->login($user);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Authentication failed: ' . $e->getMessage()], 500);
+        }
+    }
+    private function login(User $user)
+    {
+        try {
+            Log::info('Login attempt', ['user_id' => $user->id]);
+            $user->tokens()->delete();
+            $newToken = $user->createToken('auth_token', ['*'], $this->getTokenExpiration());
+            Log::info('New token created', ['token_id' => $newToken->accessToken->id]);
+            return $this->respondWithToken($newToken->plainTextToken, $user);
+        } catch (\Exception $e) {
+            Log::error('Token creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Token creation failed: ' . $e->getMessage()], 500);
+        }
+    }
+    private function isTokenExpired($token)
+    {
+        return $token->created_at->lte(now()->subMinutes(config('sanctum.expiration', 60)));
+    }
+    private function getTokenExpiration()
+    {
+        return now()->addMinutes(config('sanctum.expiration', 60));
+    }
+    private function respondWithToken($token, $user)
+    {
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'expires_at' => $this->getTokenExpiration()->toDateTimeString(),
+            'user' => $user
+        ], 200);
+    }
+    private function isSignatureVerified(RecoverAddressRequest $request): bool
+    {
+        try {
+            $recoveredAddress = Accounts::signedMessageToAddress($request->message, $request->signature);
+            return strtolower($recoveredAddress) == strtolower($request->address);
+        } catch (\Exception $e) {
+            Log::error('Signature verification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+    public function authenticate(Request $request)
+    {
+        $token = $request->bearerToken();
+        if ($token) {
+            return $this->authenticateWithToken($token, $request->address);
+        } else {
+            $recoverAddressRequest = new RecoverAddressRequest();
+            $recoverAddressRequest->merge($request->all());
+            $validator = validator($recoverAddressRequest->all(), $recoverAddressRequest->rules());
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+            return $this->authenticateWithSignature($recoverAddressRequest);
+        }
+    }
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['message' => 'Successfully logged out']);
+    }
+    public function show(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            'user' => $user
+        ]);
+    }
+    public function update(Request $request)
+    {
+        $user = $request->user();
+        $validatedData = $request->validate([
+            'current_mission' => 'sometimes|integer|min:0|max:100',
+            'avatar_url' => 'sometimes|string|max:255',
+            'coordinates' => 'sometimes|json',
+            'nickname' => 'sometimes|string|min:3|max:80',
+        ]);
+        try {
+            $user->update($validatedData);
+            return response()->json([
+                'message' => 'User updated successfully',
+                'user' => $user
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('User update failed', ['error' => $e->getMessage(), 'user_id' => $user->id]);
+            return response()->json(['error' => 'User update failed: ' . $e->getMessage()], 500);
+        }
+    }
+    public function updateCpAmount(Request $request)
+    {
+        $user = $request->user();
+        $action = $request->input('action');
+        $amount = $request->input('amount');
+        if (!in_array($action, ['add', 'remove', 'lock', 'unlock', 'setExact'])) {
+            return response()->json(['error' => 'Invalid action'], 400);
+        }
+        $result = $user->{"$action" . "Cp"}($amount);
+        if ($result) {
+            return response()->json(['message' => 'CP amount updated successfully', 'user' => $user]);
+        } else {
+            return response()->json(['error' => 'Failed to update CP amount'], 400);
+        }
+    }
+    public function updateMetaAmount(Request $request)
+    {
+        $user = $request->user();
+        $action = $request->input('action');
+        $amount = $request->input('amount');
+        if (!in_array($action, ['add', 'remove', 'lock', 'unlock', 'setExact'])) {
+            return response()->json(['error' => 'Invalid action'], 400);
+        }
+        $result = $user->{"$action" . "Meta"}($amount);
+        if ($result) {
+            return response()->json(['message' => 'Meta amount updated successfully', 'user' => $user]);
+        } else {
+            return response()->json(['error' => 'Failed to update Meta amount'], 400);
+        }
+    }
+    public function applyReferral(Request $request)
+    {
+        $referralCode = $request->input('referral_code');
+        $invitedUser = Auth::user();
+        if ($invitedUser->referrer_id) {
+            return response()->json([
+                'message' => 'You have already applied a referral code',
+                'referralApplied' => false
+            ], 400);
+        }
+        $invitor = User::where('referral_code', $referralCode)->first();
+        if ($invitor) {
+            DB::beginTransaction();
+            try {
+                // Update invitor's CP
+                $invitorCpAsset = Asset::firstOrCreate(
+                    ['user_id' => $invitor->id, 'type' => 'cp'],
+                    ['amount' => 0]
+                );
+                $invitorCpAsset->increment('amount', 1000);
+                // Update invited user's CP
+                $invitedUserCpAsset = Asset::firstOrCreate(
+                    ['user_id' => $invitedUser->id, 'type' => 'cp'],
+                    ['amount' => 0]
+                );
+                $invitedUserCpAsset->increment('amount', 500);
+                // Set the referrer_id for the invited user
+                $invitedUser->referrer_id = $invitor->id;
+                $invitedUser->save();
+                DB::commit();
+                return response()->json([
+                    'message' => 'Referral applied successfully',
+                    'referralApplied' => true
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'An error occurred while applying the referral',
+                    'referralApplied' => false
+                ], 500);
+            }
+        }
+        return response()->json([
+            'message' => 'Invalid referral code',
+            'referralApplied' => false
+        ], 400);
+    }
+    public function getReferralTree(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            'referral_tree' => $user->referralTree,
+        ]);
+    }
+    public function getReferralCode(Request $request)
+    {
+        $user = $request->user();
+        return response()->json([
+            'referral_code' => $user->referral_code,
+        ]);
+    }
+}
+================================================================================
+File: app/Models/Asset.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class Asset extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'user_id',
+        'type',
+        'amount',
+    ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+================================================================================
+File: app/Models/AssetListing.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class AssetListing extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'user_id',
+        'asset_type',
+        'amount',
+        'price_in_bnb',
+        'is_active',
+    ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+================================================================================
+File: app/Models/AssetTrade.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class AssetTrade extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'seller_id',
+        'asset_type',
+        'amount',
+        'price',
+    ];
+    public function seller()
+    {
+        return $this->belongsTo(User::class, 'seller_id');
+    }
+}
+================================================================================
+File: app/Models/Auction.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+class Auction extends Model
+{
+    protected $fillable = ['land_id', 'minimum_price', 'end_time'];
+    protected $casts = [
+        'end_time' => 'datetime',
+    ];
+    public function land(): BelongsTo
+    {
+        return $this->belongsTo(Land::class);
+    }
+    public function bids(): HasMany
+    {
+        return $this->hasMany(AuctionBid::class);
+    }
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->end_time->isFuture();
+    }
+    public function scopeActive($query)
+    {
+        return $query->where('end_time', '>', now())->where('status', 'active');
+    }
+    public function highestBid()
+    {
+        return $this->bids()->orderBy('amount', 'desc')->first();
+    }
+    public function getHighestBidAttribute()
+    {
+        $highestBid = $this->highestBid();
+        return $highestBid ? $highestBid->amount : null;
+    }
+    public function getHighestBidderAttribute()
+    {
+        $highestBid = $this->highestBid();
+        return $highestBid ? $highestBid->user : null;
+    }
+}
+================================================================================
+File: app/Models/AuctionBid.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+class AuctionBid extends Model
+{
+    protected $fillable = ['auction_id', 'user_id', 'amount'];
+    public function auction(): BelongsTo
+    {
+        return $this->belongsTo(Auction::class);
+    }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+================================================================================
+File: app/Models/Currency.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class Currency extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'user_id',
+        'type',
+        'amount',
+        'locked_amount',
+    ];
+    protected $casts = [
+        'amount' => 'integer',
+        'locked_amount' => 'integer',
+    ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    public function getAvailableAmount()
+    {
+        return $this->amount - $this->locked_amount;
+    }
+}
+================================================================================
+File: app/Models/Land.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+class Land extends Model
+{
+    protected $appends = ['type', 'owner_nickname', 'has_active_auction', 'minimum_bid', 'is_for_sale'];
+    protected $casts = [
+        'is_in_scratch' => 'boolean',
+    ];
+    protected function type(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => "building",
+        );
+    }
+    protected function ownerNickname(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (!$this->owner_id) {
+                    return null;
+                }
+                return $this->owner->nickname ?? null;
+            },
+        );
+    }
+    protected function isForSale(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->fixed_price !== null && $this->fixed_price > 0,
+        );
+    }
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+    public function offers(): HasMany
+    {
+        return $this->hasMany(Offer::class);
+    }
+    public function auctions(): HasMany
+    {
+        return $this->hasMany(Auction::class);
+    }
+    public function activeAuction(): HasOne
+    {
+        return $this->hasOne(Auction::class)->active()->latest();
+    }
+    public function getHasActiveAuctionAttribute(): bool
+    {
+        return $this->activeAuction()->exists();
+    }
+    public function getFormattedActiveAuctionAttribute()
+    {
+        $activeAuction = $this->activeAuction;
+        if (!$activeAuction) {
+            return null;
+        }
+        return [
+            'id' => $activeAuction->id,
+            'land_id' => $activeAuction->land_id,
+            'minimum_price' => $activeAuction->minimum_price,
+            'end_time' => $activeAuction->end_time,
+            'is_active' => $activeAuction->is_active,
+            'highest_bid' => $activeAuction->highest_bid,
+            'minimum_bid' => $this->minimum_bid,
+            'created_at' => $activeAuction->created_at,
+            'updated_at' => $activeAuction->updated_at,
+            'bids' => $activeAuction->bids->sortByDesc('created_at')->values()->map(function ($bid) {
+                return [
+                    'id' => $bid->id,
+                    'user' => [
+                        'id' => $bid->user->id,
+                        'nickname' => $bid->user->nickname,
+                    ],
+                    'user_nickname' => $bid->user->nickname,
+                    'amount' => $bid->amount,
+                    'created_at' => $bid->created_at,
+                ];
+            }),
+        ];
+    }
+    public function getMinimumBidAttribute()
+    {
+        $activeAuction = $this->activeAuction;
+        if (!$activeAuction) {
+            return null;
+        }
+        $highestBid = $activeAuction->highest_bid;
+        return $highestBid ? max($highestBid * 1.05, $activeAuction->minimum_price) : $activeAuction->minimum_price;
+    }
+    public function scratchBoxes()
+    {
+        return $this->belongsToMany(ScratchBox::class, 'scratch_box_land');
+    }
+}
+================================================================================
+File: app/Models/LandVersion.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class LandVersion extends Model
+{
+    use HasFactory;
+    protected $fillable = ['data', 'file_name', 'version_name', 'is_active'];
+    protected $casts = [
+        'data' => 'array',
+        'is_active' => 'boolean',
+        'is_locked' => 'boolean',
+    ];
+}
+================================================================================
+File: app/Models/Offer.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+class Offer extends Model
+{
+    public function land(): BelongsTo
+    {
+        return $this->belongsTo(Land::class);
+    }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($offer) {
+            $user = $offer->user;
+            if (!$user) {
+                throw new \Exception('User not found for this offer.');
+            }
+            if (!$user->lockBnb($offer->price)) {
+                throw new \Exception('Insufficient Bnb to place the offer.');
+            }
+        });
+        static::updating(function ($offer) {
+            $user = $offer->user;
+            $originalPrice = $offer->getOriginal('price');
+            if ($offer->isDirty('price')) {
+                $newPrice = $offer->price;
+                $priceDifference = $newPrice - $originalPrice;
+                if ($priceDifference > 0) {
+                    if (!$user->lockBnb($priceDifference)) {
+                        throw new \Exception('Insufficient Bnb to update the offer.');
+                    }
+                } else {
+                    $user->unlockBnb(abs($priceDifference));
+                }
+            }
+        });
+        static::deleted(function ($offer) {
+            if (!$offer->is_accepted) {
+                $user = $offer->user;
+                $user->unlockBnb($offer->price);
+            }
+        });
+    }
+}
+================================================================================
+File: app/Models/Quest.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class Quest extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'title',
+        'description',
+        'rewards',
+        'costs',
+    ];
+    protected $casts = [
+        'rewards' => 'array',
+        'costs' => 'array',
+    ];
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_quests')
+            ->withPivot('completed_at')
+            ->withTimestamps();
+    }
+}
+================================================================================
+File: app/Models/Reward.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class Reward extends Model
+{
+    use HasFactory;
+    public function userRewards()
+    {
+        return $this->hasMany(UserReward::class);
+    }
+}
+================================================================================
+File: app/Models/ScratchBox.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+class ScratchBox extends Model
+{
+    use HasFactory;
+    protected $fillable = ['name', 'price', 'status'];
+    protected $casts = [
+        'price' => 'integer',
+    ];
+    protected $appends = ['type', 'size'];
+    public function lands()
+    {
+        return $this->belongsToMany(Land::class, 'scratch_box_land');
+    }
+    public function getTypeAttribute()
+    {
+        return $this->lands()->count() === 1 ? 'single' : 'bulk';
+    }
+    public function open(User $user)
+    {
+        if ($this->status !== 'sold') {
+            throw new \Exception('This scratch box is not available for opening.');
+        }
+        $lands = $this->lands;
+        foreach ($lands as $land) {
+            $land->update([
+                'owner_id' => $user->id,
+                'is_in_scratch' => false
+            ]);
+        }
+        $this->update(['status' => 'opened']);
+        return $lands;
+    }
+    public function assets()
+    {
+        return $this->hasMany(Asset::class, 'amount', 'id')->where('type', 'scratch_box');
+    }
+    public function getSizeAttribute()
+    {
+        return $this->lands()->sum('size');
+    }
+}
+================================================================================
+File: app/Models/Transaction.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+class Transaction extends Model
+{
+    protected $fillable = [
+        'land_id', 'seller_id', 'buyer_id', 'price',
+    ];
+    public function land(): BelongsTo
+    {
+        return $this->belongsTo(Land::class);
+    }
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seller_id');
+    }
+    public function buyer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'buyer_id');
+    }
+}
+================================================================================
+File: app/Models/User.php
+================================================================================
+Content:
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\DB;
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+    protected $with = ['assets'];
+    protected $fillable = [
+        'id',
+        'address',
+        'nickname',
+        'avatar_url',
+        'coordinates',
+        'current_mission',
+        'referrer_id',
+        'referral_code',
+    ];
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($user) {
+            if ($user->id === 1 && $user->nickname !== 'Bank') {
+                throw new \Exception('User with ID 1 is reserved for the bank.');
+            }
+            if ($user->id !== 1) {
+                $lastUser = static::where('id', '>', 1)->orderBy('id', 'desc')->first();
+                $nextId = $lastUser ? $lastUser->id + 1 : 2; // Start from 2 if no other users exist
+                $user->id = $nextId;
+                $user->referral_code = $nextId;
+            }
+        });
+        static::created(function ($user) {
+            $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'bnb', 'bnb_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box'];
+            foreach ($assetTypes as $type) {
+                $user->assets()->create([
+                    'type' => $type,
+                    'amount' => 0,
+                ]);
+            }
+        });
+    }
+    public static function getBank()
+    {
+        $bank = self::firstOrCreate(
+            ['id' => 1],
+            [
+                'address' => '0x0000000000000000000000000000000000000000',
+                'nickname' => 'Bank',
+                'avatar_url' => null,
+                'coordinates' => null,
+                'current_mission' => 0,
+                'referral_code' => 'BANK',
+            ]
+        );
+        // Create initial assets for the bank if they don't exist
+        $assetTypes = ['cp', 'cp_locked', 'meta', 'meta_locked', 'iron', 'wood', 'sand', 'gold', 'ticket', 'giftbox', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box'];
+        foreach ($assetTypes as $type) {
+            $bank->assets()->firstOrCreate(['type' => $type], ['amount' => 0]);
+        }
+        return $bank;
+    }
+    public function ownedLands(): HasMany
+    {
+        return $this->hasMany(Land::class, 'owner_id');
+    }
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'buyer_id');
+    }
+    public function offers(): HasMany
+    {
+        return $this->hasMany(Offer::class);
+    }
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referrer_id');
+    }
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(User::class, 'referrer_id');
+    }
+    public function allReferrals(): HasMany
+    {
+        return $this->referrals()->with('allReferrals');
+    }
+    public function getReferralTreeAttribute()
+    {
+        return $this->allReferrals->map(function ($referral) {
+            return [
+                'id' => $referral->id,
+                'nickname' => $referral->nickname,
+                'referrals' => $referral->referralTree,
+            ];
+        });
+    }
+    public function makeOffer(Land $land, int $price): ?Offer
+    {
+        return $this->offers()->create([
+            'land_id' => $land->id,
+            'price' => $price,
+        ]);
+    }
+    public function getCpAttribute()
+    {
+        $cpFree = $this->assets->firstWhere('type', 'cp')->amount ?? 0;
+        $cpLocked = $this->assets->firstWhere('type', 'cp_locked')->amount ?? 0;
+        return [
+            'free' => $cpFree,
+            'locked' => $cpLocked,
+            'total' => $cpFree + $cpLocked,
+        ];
+    }
+    public function getMetaAttribute()
+    {
+        $metaFree = $this->assets->firstWhere('type', 'meta')->amount ?? 0;
+        $metaLocked = $this->assets->firstWhere('type', 'meta_locked')->amount ?? 0;
+        return [
+            'free' => $metaFree,
+            'locked' => $metaLocked,
+            'total' => $metaFree + $metaLocked,
+        ];
+    }
+    public function lockCp(int $amount): bool
+    {
+        $cpAsset = $this->assets->firstWhere('type', 'cp');
+        $cpLockedAsset = $this->assets->firstWhere('type', 'cp_locked');
+        if (!$cpAsset || !$cpLockedAsset || $cpAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($cpAsset, $cpLockedAsset, $amount) {
+            $cpAsset->amount -= $amount;
+            $cpLockedAsset->amount += $amount;
+            return $cpAsset->save() && $cpLockedAsset->save();
+        });
+    }
+    public function unlockCp(int $amount): bool
+    {
+        $cpAsset = $this->assets->firstWhere('type', 'cp');
+        $cpLockedAsset = $this->assets->firstWhere('type', 'cp_locked');
+        if (!$cpAsset || !$cpLockedAsset || $cpLockedAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($cpAsset, $cpLockedAsset, $amount) {
+            $cpAsset->amount += $amount;
+            $cpLockedAsset->amount -= $amount;
+            return $cpAsset->save() && $cpLockedAsset->save();
+        });
+    }
+    public function lockMeta(int $amount): bool
+    {
+        $metaAsset = $this->assets->firstWhere('type', 'meta');
+        $metaLockedAsset = $this->assets->firstWhere('type', 'meta_locked');
+        if (!$metaAsset || !$metaLockedAsset || $metaAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($metaAsset, $metaLockedAsset, $amount) {
+            $metaAsset->amount -= $amount;
+            $metaLockedAsset->amount += $amount;
+            return $metaAsset->save() && $metaLockedAsset->save();
+        });
+    }
+    public function unlockMeta(int $amount): bool
+    {
+        $metaAsset = $this->assets->firstWhere('type', 'meta');
+        $metaLockedAsset = $this->assets->firstWhere('type', 'meta_locked');
+        if (!$metaAsset || !$metaLockedAsset || $metaLockedAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($metaAsset, $metaLockedAsset, $amount) {
+            $metaAsset->amount += $amount;
+            $metaLockedAsset->amount -= $amount;
+            return $metaAsset->save() && $metaLockedAsset->save();
+        });
+    }
+    public function addCp(int $amount): bool
+    {
+        $cpAsset = $this->assets->firstWhere('type', 'cp');
+        if (!$cpAsset) {
+            return false;
+        }
+        $cpAsset->amount += $amount;
+        return $cpAsset->save();
+    }
+    public function removeCp(int $amount): bool
+    {
+        $cpAsset = $this->assets->firstWhere('type', 'cp');
+        if (!$cpAsset || $cpAsset->amount < $amount) {
+            return false;
+        }
+        $cpAsset->amount -= $amount;
+        return $cpAsset->save();
+    }
+    public function addMeta(int $amount): bool
+    {
+        $metaAsset = $this->assets->firstWhere('type', 'meta');
+        if (!$metaAsset) {
+            return false;
+        }
+        $metaAsset->amount += $amount;
+        return $metaAsset->save();
+    }
+    public function removeMeta(int $amount): bool
+    {
+        $metaAsset = $this->assets->firstWhere('type', 'meta');
+        if (!$metaAsset || $metaAsset->amount < $amount) {
+            return false;
+        }
+        $metaAsset->amount -= $amount;
+        return $metaAsset->save();
+    }
+    public function transferCp(User $recipient, int $amount): bool
+    {
+        return DB::transaction(function () use ($recipient, $amount) {
+            if (!$this->removeCp($amount)) {
+                return false;
+            }
+            return $recipient->addCp($amount);
+        });
+    }
+    public function transferMeta(User $recipient, int $amount): bool
+    {
+        return DB::transaction(function () use ($recipient, $amount) {
+            if (!$this->removeMeta($amount)) {
+                return false;
+            }
+            return $recipient->addMeta($amount);
+        });
+    }
+    public function hasSufficientCp(int $amount): bool
+    {
+        return ($this->assets->firstWhere('type', 'cp')->amount ?? 0) >= $amount;
+    }
+    public function hasSufficientMeta(int $amount): bool
+    {
+        return ($this->assets->firstWhere('type', 'meta')->amount ?? 0) >= $amount;
+    }
+    public function applyReferral(string $referralCode): bool
+    {
+        if ($this->referrer_id) {
+            return false;
+        }
+        $referrer = User::where('referral_code', $referralCode)->first();
+        if (!$referrer || $referrer->id === $this->id) {
+            return false;
+        }
+        $this->referrer_id = $referrer->id;
+        return $this->save();
+    }
+    public function assets()
+    {
+        return $this->hasMany(Asset::class);
+    }
+    public function getAssetsDataAttribute()
+    {
+        return $this->assets->keyBy('type')->map(function ($asset) {
+            return $asset->amount;
+        });
+    }
+    public function updateAsset(string $assetType, int $amount): bool
+    {
+        $asset = $this->assets->firstWhere('type', $assetType);
+        if (!$asset) {
+            return false;
+        }
+        $asset->amount = max(0, $asset->amount + $amount);
+        return $asset->save();
+    }
+    public function setAssetExact(string $assetType, int $amount): bool
+    {
+        $asset = $this->assets->firstWhere('type', $assetType);
+        if (!$asset) {
+            return false;
+        }
+        $asset->amount = max(0, $amount);
+        return $asset->save();
+    }
+    public function userRewards()
+    {
+        return $this->hasMany(UserReward::class);
+    }
+    public function quests(): BelongsToMany
+    {
+        return $this->belongsToMany(Quest::class, 'user_quests')
+            ->withPivot('completed_at')
+            ->withTimestamps();
+    }
+    public function getBnbAttribute()
+    {
+        $bnbFree = $this->assets->firstWhere('type', 'bnb')->amount ?? 0;
+        $bnbLocked = $this->assets->firstWhere('type', 'bnb_locked')->amount ?? 0;
+        return [
+            'free' => $bnbFree,
+            'locked' => $bnbLocked,
+            'total' => $bnbFree + $bnbLocked,
+        ];
+    }
+    public function lockBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        $bnbLockedAsset = $this->assets->firstWhere('type', 'bnb_locked');
+        if (!$bnbAsset || !$bnbLockedAsset || $bnbAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($bnbAsset, $bnbLockedAsset, $amount) {
+            $bnbAsset->amount -= $amount;
+            $bnbLockedAsset->amount += $amount;
+            return $bnbAsset->save() && $bnbLockedAsset->save();
+        });
+    }
+    public function unlockBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        $bnbLockedAsset = $this->assets->firstWhere('type', 'bnb_locked');
+        if (!$bnbAsset || !$bnbLockedAsset || $bnbLockedAsset->amount < $amount) {
+            return false;
+        }
+        return DB::transaction(function () use ($bnbAsset, $bnbLockedAsset, $amount) {
+            $bnbAsset->amount += $amount;
+            $bnbLockedAsset->amount -= $amount;
+            return $bnbAsset->save() && $bnbLockedAsset->save();
+        });
+    }
+    public function addBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        if (!$bnbAsset) {
+            return false;
+        }
+        $bnbAsset->amount += $amount;
+        return $bnbAsset->save();
+    }
+    public function removeBnb(int $amount): bool
+    {
+        $bnbAsset = $this->assets->firstWhere('type', 'bnb');
+        if (!$bnbAsset || $bnbAsset->amount < $amount) {
+            return false;
+        }
+        $bnbAsset->amount -= $amount;
+        return $bnbAsset->save();
+    }
+    public function transferBnb(User $recipient, int $amount): bool
+    {
+        return DB::transaction(function () use ($recipient, $amount) {
+            if (!$this->removeBnb($amount)) {
+                return false;
+            }
+            return $recipient->addBnb($amount);
+        });
+    }
+    public function hasSufficientBnb(int $amount): bool
+    {
+        return ($this->assets->firstWhere('type', 'bnb')->amount ?? 0) >= $amount;
+    }
+}
+================================================================================
+File: database/migrations/0001_01_01_000000_create_users_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->integer('role')->nullable()->default(0);
+            $table->string('address')->unique();
+            $table->string('nickname')->nullable();
+            $table->string('avatar_url')->nullable();
+            $table->json('coordinates')->nullable();
+            $table->integer('current_mission')->default(0);
+            $table->unsignedBigInteger('referrer_id')->nullable();
+            $table->string('referral_code')->unique()->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('users');
+    }
+};
+================================================================================
+File: database/migrations/0001_01_01_000001_create_cache_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration');
+        });
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration');
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
+================================================================================
+File: database/migrations/0001_01_01_000002_create_jobs_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('queue')->index();
+            $table->longText('payload');
+            $table->unsignedTinyInteger('attempts');
+            $table->unsignedInteger('reserved_at')->nullable();
+            $table->unsignedInteger('available_at');
+            $table->unsignedInteger('created_at');
+        });
+        Schema::create('job_batches', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('name');
+            $table->integer('total_jobs');
+            $table->integer('pending_jobs');
+            $table->integer('failed_jobs');
+            $table->longText('failed_job_ids');
+            $table->mediumText('options')->nullable();
+            $table->integer('cancelled_at')->nullable();
+            $table->integer('created_at');
+            $table->integer('finished_at')->nullable();
+        });
+        Schema::create('failed_jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('uuid')->unique();
+            $table->text('connection');
+            $table->text('queue');
+            $table->longText('payload');
+            $table->longText('exception');
+            $table->timestamp('failed_at')->useCurrent();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('jobs');
+        Schema::dropIfExists('job_batches');
+        Schema::dropIfExists('failed_jobs');
+    }
+};
+================================================================================
+File: database/migrations/2024_06_19_230927_create_personal_access_tokens_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('personal_access_tokens', function (Blueprint $table) {
+            $table->id();
+            $table->morphs('tokenable');
+            $table->string('name');
+            $table->string('token', 64)->unique();
+            $table->text('abilities')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('personal_access_tokens');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_04_094436_create_offers_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('offers', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('land_id');
+            $table->foreignId('user_id');
+            $table->integer('price');
+            $table->boolean('is_accepted')->default(false);
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('offers');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_04_131019_create_lands_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('lands', function (Blueprint $table) {
+            $table->id();
+            $table->string('full_id')->nullable();
+            $table->string('region')->nullable();
+            $table->string('zone')->nullable();
+            $table->json('coordinates')->nullable();
+            $table->json('center_point')->nullable();
+            $table->integer('size')->nullable();
+            $table->integer('owner_id')->nullable()->default(0);
+            $table->integer('fixed_price')->nullable()->default(0);
+            $table->boolean('is_in_scratch')->default(false);
+            $table->boolean('is_locked')->nullable()->default(false);
+            $table->integer('building_id')->nullable()->default(0);
+            $table->integer('building_name')->nullable()->default(0);
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('lands');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_04_131019_create_transactions.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('transactions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('land_id');
+            $table->foreignId('seller_id');
+            $table->foreignId('buyer_id') ;
+            $table->integer('price');
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('transactions');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_06_093807_add_latitude_longitude_to_lands_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::table('lands', function (Blueprint $table) {
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
+        });
+    }
+    public function down()
+    {
+        Schema::table('lands', function (Blueprint $table) {
+            $table->dropColumn(['latitude', 'longitude']);
+        });
+    }
+};
+================================================================================
+File: database/migrations/2024_07_11_131219_create_auctions_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('auctions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('land_id');
+            $table->foreignId('owner_id');
+            $table->integer('minimum_price');
+            $table->timestamp('start_time');
+            $table->timestamp('end_time');
+            $table->enum('status', ['active', 'canceled', 'done'])->default('active');
+            $table->timestamps();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('auctions');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_13_083621_create_auction_bids_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('auction_bids', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('auction_id');
+            $table->foreignId('user_id');
+            $table->decimal('amount', 20, 2);
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('bids');
+    }
+};  
+================================================================================
+File: database/migrations/2024_07_18_132925_create_assets_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('assets', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->enum('type', ['cp', 'cp_locked', 'meta', 'meta_locked', 'bnb', 'bnb_locked', 'iron', 'wood', 'sand', 'gold', 'giftbox', 'ticket', 'chest_silver', 'chest_gold', 'chest_diamond', 'scratch_box']);
+            $table->unsignedBigInteger('amount');
+            $table->timestamps();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('assets');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_24_103105_create_gift_boxes_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('gift_boxes', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('gift_boxes');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_24_103202_create_gift_box_contents_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('gift_box_contents', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('gift_box_id');
+            $table->string('content_type'); // 'cp', 'meta', 'wood', 'stone', etc.
+            $table->integer('amount');
+            $table->decimal('probability', 5, 2); // Probability of getting this item (0-100)
+            $table->timestamps();
+        });
+    }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('gift_box_contents');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_31_191442_create_currencies_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+class CreateCurrenciesTable extends Migration
+{
+    public function up()
+    {
+        Schema::create('currencies', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->enum('type', ['cp', 'meta', 'bnb']);
+            $table->unsignedBigInteger('amount')->default(0);
+            $table->unsignedBigInteger('locked_amount')->default(0);
+            $table->timestamps();
+            $table->unique(['user_id', 'type']);
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('currencies');
+    }
+}
+================================================================================
+File: database/migrations/2024_07_31_194952_create_quests_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('quests', function (Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->json('rewards')->nullable();
+            $table->json('costs')->nullable();
+            $table->timestamps();
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('quests');
+    }
+};
+================================================================================
+File: database/migrations/2024_07_31_195053_create_user_quests_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('user_quests', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->foreignId('quest_id');
+            $table->timestamp('completed_at')->nullable();
+            $table->timestamps();
+            $table->unique(['user_id', 'quest_id']);
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('user_quests');
+    }
+};
+================================================================================
+File: database/migrations/2024_08_01_142117_create_land_versions_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('land_versions', function (Blueprint $table) {
+            $table->id();
+            $table->json('data');
+            $table->string('file_name');
+            $table->string('version_name');
+            $table->boolean('is_active')->default(false);
+            $table->boolean('is_locked')->default(false);
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('land_versions');
+    }
+};
+================================================================================
+File: database/migrations/2024_08_03_220046_create_scratch_boxes_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('scratch_boxes', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->integer('price')->default(0);
+            $table->enum('status', ['available', 'sold', 'opened'])->default('available');
+            $table->timestamps();
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('scratch_boxes');
+    }
+};
+================================================================================
+File: database/migrations/2024_08_03_220054_create_scratch_box_land_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('scratch_box_land', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('scratch_box_id');
+            $table->foreignId('land_id');
+            $table->timestamps();
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('scratch_box_land');
+    }
+};
+================================================================================
+File: database/migrations/2024_08_05_084241_create_asset_trades_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::create('asset_trades', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('seller_id')->constrained('users');
+            $table->string('asset_type');
+            $table->unsignedBigInteger('amount');
+            $table->decimal('price', 18, 8);
+            $table->timestamps();
+        });
+    }
+    public function down()
+    {
+        Schema::dropIfExists('asset_trades');
+    }
+};
+================================================================================
+File: database/migrations/2024_08_05_100540_create_asset_listings_table.php
+================================================================================
+Content:
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('asset_listings', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('asset_type');
+            $table->integer('amount');
+            $table->decimal('price_in_bnb', 18, 8);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
+    public function down(): void
+    {
+        Schema::dropIfExists('asset_listings');
+    }
+};
+<?php
+use App\Http\Controllers\AdminLandController;
+use App\Http\Controllers\AdminScratchBoxController;
+use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetListingController;
+use App\Http\Controllers\AuctionController;
+use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\LandController;
+use App\Http\Controllers\OfferController;
+use App\Http\Controllers\QuestController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\LandImportController;
+use App\Http\Controllers\ScratchBoxController;
+use Illuminate\Support\Facades\Route;
+//AUTH
+Route::prefix('user')->group(function () {
+    Route::post('authenticate', [UserController::class, 'authenticate']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('show', [UserController::class, 'show']);
+        Route::post('update', [UserController::class, 'update']);
+        Route::post('logout', [UserController::class, 'logout']);
+        Route::post('apply-referral', [UserController::class, 'applyReferral']);
+        Route::get('referral-tree', [UserController::class, 'getReferralTree']);
+        Route::get('referral-code', [UserController::class, 'getReferralCode']);
+    });
+});
+//ASSETS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/assets', [AssetController::class, 'index']);
+    Route::post('/assets/update', [AssetController::class, 'update']);
+});
+//AUCTIONS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auctions/start/{landId}', [AuctionController::class, 'startAuction']);
+    Route::post('/auctions/{id}/bid', [AuctionController::class, 'placeBid']);
+    Route::get('/auctions/active', [AuctionController::class, 'getActiveAuctions']);
+});
+//OFFERS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/offers/{landId}', [OfferController::class, 'getOffersByLand']);
+    Route::post('/offers/user', [OfferController::class, 'getOffersByUser']);
+    Route::post('/offers/submit', [OfferController::class, 'submitOffer']);
+    Route::post('/offers/delete/{offerId}', [OfferController::class, 'deleteOffer']);
+    Route::post('/offers/update/{offerId}', [OfferController::class, 'updateOffer']);
+});
+//Transactions
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/lands/{id}/buy', [TransactionController::class, 'buyLand']);
+    Route::post('/offers/accept/{offerId}', [TransactionController::class, 'acceptOffer']);
+});
+// Auctions
+Route::get('/auctions/process', [AuctionController::class, 'processAuction']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auctions/create', [AuctionController::class, 'createAuction']);
+    Route::post('/auctions/{auctionId}/bid', [AuctionController::class, 'placeBid']);
+    Route::get('/auctions/{auctionId}/bids', [AuctionController::class, 'getBidsForAuction']);
+    Route::post('/auctions/{auctionId}/cancel', [AuctionController::class, 'cancelAuction']);
+});
+// Currency
+Route::prefix('currency')->group(function () {
+    Route::get('{userId}/{type}', [CurrencyController::class, 'getBalance']);
+    Route::post('lock', [CurrencyController::class, 'lock']);
+    Route::post('unlock', [CurrencyController::class, 'unlock']);
+    Route::post('add', [CurrencyController::class, 'add']);
+    Route::post('subtract', [CurrencyController::class, 'subtract']);
+});
+// Quests
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/quests', [QuestController::class, 'index']);
+    Route::get('/quests/{quest}', [QuestController::class, 'show']);
+    Route::post('/quests', [QuestController::class, 'store']);
+    Route::put('/quests/{quest}', [QuestController::class, 'update']);
+    Route::delete('/quests/{quest}', [QuestController::class, 'destroy']);
+    Route::post('/quests/complete', [QuestController::class, 'complete']);
+    Route::get('/user/quests', [QuestController::class, 'userQuests']);
+    Route::get('/user/available-quests', [QuestController::class, 'availableQuests']);
+});
+//LANDS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/lands', [LandController::class, 'index']);
+    Route::get('/lands/all', [LandController::class, 'all']);
+    Route::get('/lands/user', [LandController::class, 'getUserLands']);
+    Route::get('/lands/{id}', [LandController::class, 'show']);
+    Route::post('/lands/{id}/set-price', [LandController::class, 'setPrice']);
+    Route::post('/lands/{id}/update-price', [LandController::class, 'updatePrice']);
+    Route::post('/lands/{id}/cancel-sell', [LandController::class, 'cancelSell']);
+});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/marketplace/lands', [LandController::class, 'getMarketplaceLands']);
+});
+//LAND-AUCTIONS
+Route::post('/lands/{id}/get-active-auction', [LandController::class, 'getLandActiveAuction']);
+// ADMIN-LAND-VERSION
+Route::post('/admin/lands/import', [LandImportController::class, 'import']);
+Route::get('/admin/lands/versions', [LandImportController::class, 'getVersions']);
+Route::post('/admin/lands/revert/{id}', [LandImportController::class, 'revertToVersion']);
+Route::post('/admin/lands/toggle-active/{id}', [LandImportController::class, 'toggleActive']);
+Route::get('/admin/lands/versions/{id}', [LandImportController::class, 'getVersion']);
+Route::post('/admin/lands/update-active-versions', [LandImportController::class, 'updateActiveVersions']);
+Route::delete('/admin/lands/versions/{id}', [LandImportController::class, 'deleteVersion']);
+Route::post('/admin/lands/lock/{id}', [LandImportController::class, 'lockLands']);
+Route::post('/admin/lands/unlock/{id}', [LandImportController::class, 'unlockLands']);
+// });
+// ADMIN-LAND-MANAGE
+Route::prefix('admin/manage')->group(function () {
+    Route::get('/lands', [AdminLandController::class, 'index']);
+    Route::put('/lands/{id}', [AdminLandController::class, 'update']);
+    Route::get('/lands/all-ids', [AdminLandController::class, 'getAllLandIds']);
+    Route::post('/lands/bulk-update-fixed-price', [AdminLandController::class, 'bulkUpdateFixedPrice']);
+    Route::post('/lands/bulk-update-price-by-size', [AdminLandController::class, 'bulkUpdatePriceBySize']);
+    Route::post('/lands/bulk-create-auctions', [AdminLandController::class, 'bulkCreateAuctions']);
+    Route::post('/lands/bulk-cancel-auctions', [AdminLandController::class, 'bulkCancelAuctions']);
+    Route::post('/lands/bulk-remove-auctions', [AdminLandController::class, 'bulkRemoveAuctions']);
+    Route::get('/auctions', [AdminLandController::class, 'getAuctions']);
+    Route::delete('/lands/{id}', [AdminLandController::class, 'destroy']);
+});
+// ADMIN-SCRATCH-BOXES
+Route::prefix('admin/scratch-boxes')->group(function () {
+    Route::get('/', [AdminScratchBoxController::class, 'index']);
+    Route::post('/', [AdminScratchBoxController::class, 'create']);
+    Route::delete('/{id}', [AdminScratchBoxController::class, 'destroy']);
+    Route::get('/all-available-land-ids', [AdminScratchBoxController::class, 'getAllAvailableLandIds']);
+    Route::get('/available-lands', [AdminScratchBoxController::class, 'getAvailableLands']);
+});
+// SCRATCH-BOXES
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/scratch-boxes', [ScratchBoxController::class, 'index']);
+    Route::get('/scratch-boxes/available', [ScratchBoxController::class, 'available']);
+    Route::get('/scratch-boxes/owned', [ScratchBoxController::class, 'owned']);
+    Route::post('/scratch-boxes/{id}/buy', [ScratchBoxController::class, 'buy']);
+    Route::post('/scratch-boxes/{id}/open', [ScratchBoxController::class, 'open']);
+});
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/asset-listings', [AssetListingController::class, 'index']);
+    Route::post('/asset-listings', [AssetListingController::class, 'create']);
+    Route::put('/asset-listings/{listing}', [AssetListingController::class, 'update']);
+    Route::delete('/asset-listings/{listing}', [AssetListingController::class, 'destroy']);
+    Route::post('/asset-listings/{listing}/buy', [AssetListingController::class, 'buy']);
+});

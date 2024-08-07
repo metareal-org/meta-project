@@ -2,35 +2,40 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useUserStore } from "@/store/player-store/useUserStore";
-import { useToast } from "@/components/ui/use-toast";
 import AssetGrid from "./asset-grid";
 import FilterControls from "./filter-control";
 import useAssetStore from "@/store/player-store/useAssetStore";
 import useAlertStore from "@/store/gui-store/useAlertStore";
 import useSpinwheelStore from "@/store/minigame-store/useSpinwheelStore";
+import useMarketAssetStore from "@/store/market-store/useMarketAssetStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SellModal } from "./sell-modal";
-import axiosInstance from "@/lib/axios-instance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssetListingsGrid } from "./asset-listing-grid";
-import { AssetListing } from "./types";
+
 export default function AssetsPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("type");
   const [sortOrder, setSortOrder] = useState("asc");
   const { user } = useUserStore();
-  const [listings, setListings] = useState<AssetListing[]>([]);
-  const [ownListings, setOwnListings] = useState<AssetListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
   const { assets } = useAssetStore();
   const { openAlert } = useAlertStore();
   const { setShowSpinModal } = useSpinwheelStore();
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [selectedAssetForSell, setSelectedAssetForSell] = useState<string | null>(null);
 
+  const { 
+    listings, 
+    ownListings, 
+    loading, 
+    marketCreateAssetListing,
+    marketFetchListings, 
+    marketBuyAsset, 
+    marketRemoveListing 
+  } = useMarketAssetStore();
+
   useEffect(() => {
-    if (user) setLoading(false);
+    if (user) marketFetchListings();
   }, [user]);
 
   const handleSort = (newSortBy: string) => {
@@ -61,56 +66,8 @@ export default function AssetsPage() {
   };
 
   const handleCreateListing = async (data: { asset_type: string; amount: number; price_in_bnb: number }) => {
-    try {
-      const response = await axiosInstance.post("/asset-listings", data);
-      if (response.data && response.data.listing) {
-        toast({ title: "Success", description: "Listing created successfully!" });
-        setSellModalOpen(false);
-      } else throw new Error("Unexpected response format");
-    } catch (error: any) {
-      console.error("Error creating listing:", error);
-      let errorMessage = "Failed to create listing";
-      if (error.response && error.response.data && error.response.data.message) errorMessage = error.response.data.message;
-      toast({ title: "Error", description: errorMessage, variant: "destructive" });
-    }
-  };
-
-  useEffect(() => {
-    fetchListings();
-  }, []);
-
-  const fetchListings = async () => {
-    try {
-      setLoading(true);
-      const response = await axiosInstance.get("/asset-listings");
-      const allListings = response.data.listings;
-      setListings(allListings.filter((listing: AssetListing) => listing.user_id !== user?.id));
-      setOwnListings(allListings.filter((listing: AssetListing) => listing.user_id === user?.id));
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to fetch asset listings", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBuy = async (listingId: number) => {
-    try {
-      await axiosInstance.post(`/asset-listings/${listingId}/buy`);
-      toast({ title: "Success", description: "Asset purchased successfully!" });
-      fetchListings();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to purchase asset", variant: "destructive" });
-    }
-  };
-
-  const handleRemove = async (listingId: number) => {
-    try {
-      await axiosInstance.delete(`/asset-listings/${listingId}`);
-      toast({ title: "Success", description: "Listing removed successfully!" });
-      fetchListings();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to remove listing", variant: "destructive" });
-    }
+    await marketCreateAssetListing(data);
+    setSellModalOpen(false);
   };
 
   if (!user) return <div className="container mx-auto p-8 text-center">Loading...</div>;
@@ -132,13 +89,13 @@ export default function AssetsPage() {
         <TabsContent value="buy">
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-2xl">Available Assets</CardTitle></CardHeader>
-            <CardContent><AssetListingsGrid listings={ownListings} onBuy={handleBuy} loading={loading} /></CardContent>
+            <CardContent><AssetListingsGrid listings={listings} onBuy={marketBuyAsset} loading={loading} /></CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="my-listings">
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-2xl">My Listed Assets</CardTitle></CardHeader>
-            <CardContent><AssetListingsGrid listings={listings} onRemove={handleRemove} loading={loading} isOwnListings /></CardContent>
+            <CardContent><AssetListingsGrid listings={ownListings} onRemove={marketRemoveListing} loading={loading} isOwnListings /></CardContent>
           </Card>
         </TabsContent>
       </Tabs>

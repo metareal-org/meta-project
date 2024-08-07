@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('version_name');
             $table->boolean('is_active')->default(false);
             $table->boolean('is_locked')->default(false);
+            $table->string('type')->default('normal');
             $table->timestamps();
         });
     }

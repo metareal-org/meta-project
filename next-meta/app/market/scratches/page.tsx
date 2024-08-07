@@ -1,6 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import axiosInstance from "@/lib/axios-instance";
+import React, { useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,77 +9,48 @@ import { ScratchBoxTable } from "./scratchtbox-table";
 import { OpenScratchBoxDialog } from "./open-scratchtbox-dialog";
 import { WonLandsDialog } from "./won-lands-dialog";
 import { ScratchBoxFilters } from "./scratch-box-filters";
-import { ScratchBox } from "./types";
-import { LandWithDetails } from "@/store/world-store/useLandStore";
+import { useMarketScratcheStore } from "@/store/market-store/useMarketScratcheStore";
 
 export default function ScratchesPage() {
   const { user } = useUserStore();
-  const [availableScratchBoxes, setAvailableScratchBoxes] = useState<ScratchBox[]>([]);
-  const [ownedScratchBoxes, setOwnedScratchBoxes] = useState<ScratchBox[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [bnbBalance, setBnbBalance] = useState<number>(0);
-  const [selectedBox, setSelectedBox] = useState<ScratchBox | null>(null);
-  const [openLandsDialog, setOpenLandsDialog] = useState(false);
-  const [wonLands, setWonLands] = useState<LandWithDetails[]>([]);
-  const [filter, setFilter] = useState("all");
+  const {
+    availableScratchBoxes,
+    ownedScratchBoxes,
+    loading,
+    error,
+    wonLands,
+    filter,
+    setFilter,
+    marketFetchScratchBoxes,
+    marketBuyScratchBox,
+    marketOpenScratchBox
+  } = useMarketScratcheStore();
+
+  const [selectedBox, setSelectedBox] = React.useState(null);
+  const [openLandsDialog, setOpenLandsDialog] = React.useState(false);
   const { toast } = useToast();
+
+  const bnbBalance = user?.assets.find((a) => a.type === "bnb")?.amount || 0;
+
   const filteredAvailableBoxes = availableScratchBoxes.filter((box) => filter === "all" || box.status === filter);
   const filteredOwnedBoxes = ownedScratchBoxes.filter((box) => filter === "all" || box.status === filter);
 
   useEffect(() => {
-    if (!user) return;
-    setBnbBalance(user?.assets.find((a) => a.type === "bnb")?.amount || 0);
-  }, [user]);
-
-  useEffect(() => {
-    fetchScratchBoxes();
+    marketFetchScratchBoxes();
   }, []);
 
-  const fetchScratchBoxes = async () => {
-    try {
-      setLoading(true);
-      const [availableResponse, ownedResponse] = await Promise.all([axiosInstance.get("/scratch-boxes/available"), axiosInstance.get("/scratch-boxes/owned")]);
-      setAvailableScratchBoxes(availableResponse.data);
-      setOwnedScratchBoxes(ownedResponse.data);
-    } catch (err) {
-      setError("Failed to fetch scratch boxes");
-    } finally {
-      setLoading(false);
-    }
+  const handleBuyScratchBox = async (id: number) => {
+    await marketBuyScratchBox(id);
+    toast({
+      title: "Success",
+      description: "Scratch box purchased successfully!",
+    });
   };
 
-  const buyScratchBox = async (id: number) => {
-    try {
-      await axiosInstance.post(`/scratch-boxes/${id}/buy`);
-      fetchScratchBoxes();
-      toast({
-        title: "Success",
-        description: "Scratch box purchased successfully!",
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to buy scratch box",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const openScratchBox = async (id: number) => {
-    try {
-      const response = await axiosInstance.post<{ lands: LandWithDetails[] }>(`/scratch-boxes/${id}/open`);
-      setSelectedBox(null);
-      fetchScratchBoxes();
-      setWonLands(response.data.lands);
-      setOpenLandsDialog(true);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to open scratch box",
-        variant: "destructive",
-      });
-    }
+  const handleOpenScratchBox = async (id: number) => {
+    await marketOpenScratchBox(id);
+    setSelectedBox(null);
+    setOpenLandsDialog(true);
   };
 
   if (loading) {
@@ -121,7 +91,7 @@ export default function ScratchesPage() {
         <ScratchBoxFilters onFilterChange={setFilter} />
 
         <TabsContent value="buy">
-          <ScratchBoxTable scratchBoxes={filteredAvailableBoxes} bnbBalance={bnbBalance} onBuy={buyScratchBox} mode="buy" />
+          <ScratchBoxTable scratchBoxes={filteredAvailableBoxes} bnbBalance={bnbBalance} onBuy={handleBuyScratchBox} mode="buy" />
         </TabsContent>
 
         <TabsContent value="owned">
@@ -129,7 +99,7 @@ export default function ScratchesPage() {
         </TabsContent>
       </Tabs>
 
-      <OpenScratchBoxDialog selectedBox={selectedBox} onClose={() => setSelectedBox(null)} onConfirm={openScratchBox} />
+      <OpenScratchBoxDialog selectedBox={selectedBox} onClose={() => setSelectedBox(null)} onConfirm={handleOpenScratchBox} />
       <WonLandsDialog open={openLandsDialog} onOpenChange={setOpenLandsDialog} wonLands={wonLands} />
     </div>
   );

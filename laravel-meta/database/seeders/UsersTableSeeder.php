@@ -23,7 +23,7 @@ class UsersTableSeeder extends Seeder
                 'nickname' => 'Bank',
                 'avatar_url' => NULL,
                 'coordinates' => NULL,
-                'current_mission' => 0,
+                'current_mission' => 8,
                 'referrer_id' => NULL,
                 'referral_code' => 'BANK',
                 'remember_token' => NULL,

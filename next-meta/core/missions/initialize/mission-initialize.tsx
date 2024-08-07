@@ -25,7 +25,7 @@ export default function MissionInitialize() {
         signMessage({ message: SIGN_MESSAGE });
       } else {
         try {
-          const response = await axios.post(
+          await axios.post(
             AUTH_ROUTE,
             { address },
             {

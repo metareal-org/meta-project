@@ -1,92 +1,56 @@
-"use client";
+// app/admin/dataset/version-list.tsx
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import axiosInstance from "@/lib/axios-instance";
-import { useToast } from "@/components/ui/use-toast";
-import dynamic from "next/dynamic";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Lock, Unlock, Loader2, Eye } from "lucide-react";
+import { useAdminLandVersionStore } from "@/store/admin-store/useAdminLandVersionStore";
+import dynamic from "next/dynamic";
 
 const LandMapPreview = dynamic(() => import("./land-map-preview"), { ssr: false });
 
-interface Version {
-  id: number;
-  file_name: string;
-  version_name: string;
-  is_active: boolean;
-  is_locked: boolean;
-  created_at: string;
-}
+const VersionList: React.FC = () => {
+  const {
+    versions,
+    selectedVersions,
+    adminFetchLandVersions,
+    adminSelectAllVersions,
+    adminSelectVersion,
+    adminToggleVersionActive,
+    adminDeleteSelectedVersions,
+    adminToggleVersionLock,
+    adminPreviewVersion,
+    adminUpdateLandType,
+  } = useAdminLandVersionStore();
 
-interface VersionListProps {
-  versions: Version[];
-  onUpdate: () => Promise<void>;
-}
-
-const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
-  const [selectedVersions, setSelectedVersions] = useState<number[]>([]);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewingVersionId, setPreviewingVersionId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isUpdatingActive, setIsUpdatingActive] = useState(false);
+  const [updatingVersionId, setUpdatingVersionId] = useState<number | null>(null);
   const [isDeletingVersion, setIsDeletingVersion] = useState<number | null>(null);
   const [isTogglingLock, setIsTogglingLock] = useState<number | null>(null);
-  const [updatingVersionId, setUpdatingVersionId] = useState<number | null>(null);
-  const { toast } = useToast();
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedVersions(versions.map((v) => v.id));
-    } else {
-      setSelectedVersions([]);
-    }
-  };
-
-  const handleSelectVersion = (id: number) => {
-    setSelectedVersions((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
-  };
+  useEffect(() => {
+    adminFetchLandVersions();
+  }, [adminFetchLandVersions]);
 
   const handleToggleActive = async (id: number, currentState: boolean) => {
     setUpdatingVersionId(id);
     try {
-      await axiosInstance.post(`/admin/lands/toggle-active/${id}`, { is_active: !currentState });
-      toast({
-        title: "Success",
-        description: `Version ${currentState ? "deactivated" : "activated"} successfully`,
-      });
-      // Refetch data to update the UI
-      await onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${currentState ? "deactivate" : "activate"} version`,
-        variant: "destructive",
-      });
+      await adminToggleVersionActive(id, currentState);
     } finally {
       setUpdatingVersionId(null);
-      window.location.reload();
     }
   };
 
   const handleDeleteSelected = async () => {
-    setIsDeletingVersion(-1); // Use -1 to indicate multiple deletions
+    setIsDeletingVersion(-1);
     try {
-      await Promise.all(selectedVersions.map((id) => axiosInstance.delete(`/admin/lands/versions/${id}`)));
-      toast({
-        title: "Success",
-        description: "Selected versions deleted successfully",
-      });
-      setSelectedVersions([]);
-      await onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete selected versions",
-        variant: "destructive",
-      });
+      await adminDeleteSelectedVersions();
     } finally {
       setIsDeletingVersion(null);
     }
@@ -95,22 +59,7 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
   const handleToggleLock = async (id: number, currentLockState: boolean) => {
     setIsTogglingLock(id);
     try {
-      if (currentLockState) {
-        await axiosInstance.post(`/admin/lands/unlock/${id}`);
-      } else {
-        await axiosInstance.post(`/admin/lands/lock/${id}`);
-      }
-      toast({
-        title: "Success",
-        description: `Lands ${currentLockState ? "unlocked" : "locked"} successfully`,
-      });
-      await onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${currentLockState ? "unlock" : "lock"} lands`,
-        variant: "destructive",
-      });
+      await adminToggleVersionLock(id, currentLockState);
     } finally {
       setIsTogglingLock(null);
     }
@@ -120,14 +69,9 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
     try {
       setIsLoading(true);
       setPreviewingVersionId(id);
-      const response = await axiosInstance.get(`/admin/lands/versions/${id}`);
-      setPreviewData(JSON.parse(response.data.data));
+      const data = await adminPreviewVersion(id);
+      setPreviewData(data);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load preview data",
-        variant: "destructive",
-      });
       setPreviewingVersionId(null);
     } finally {
       setIsLoading(false);
@@ -139,11 +83,19 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
     setPreviewData(null);
   };
 
+  const handleUpdateType = async (id: number, type: string) => {
+    await adminUpdateLandType(id, type);
+  };
+
   return (
     <>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-2">
-          <Checkbox id="select-all" checked={selectedVersions.length === versions.length} onCheckedChange={handleSelectAll} />
+          <Checkbox
+            id="select-all"
+            checked={selectedVersions.length === versions.length}
+            onCheckedChange={(checked) => adminSelectAllVersions(checked as boolean)}
+          />
           <label htmlFor="select-all">Select All</label>
         </div>
         <Button onClick={handleDeleteSelected} variant="destructive" disabled={selectedVersions.length === 0 || isDeletingVersion !== null}>
@@ -157,19 +109,31 @@ const VersionList: React.FC<VersionListProps> = ({ versions, onUpdate }) => {
             <TableHead>File Name</TableHead>
             <TableHead>Version Name</TableHead>
             <TableHead>Created At</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Active</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {versions.map((version: Version) => (
+          {versions.map((version) => (
             <TableRow key={version.id}>
               <TableCell>
-                <Checkbox checked={selectedVersions.includes(version.id)} onCheckedChange={() => handleSelectVersion(version.id)} />
+                <Checkbox checked={selectedVersions.includes(version.id)} onCheckedChange={() => adminSelectVersion(version.id)} />
               </TableCell>
               <TableCell>{version.file_name}</TableCell>
               <TableCell>{version.version_name}</TableCell>
               <TableCell>{new Date(version.created_at).toLocaleString()}</TableCell>
+              <TableCell>
+                <Select value={version.type} onValueChange={(value) => handleUpdateType(version.id, value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="mine">Mine</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
               <TableCell>
                 {updatingVersionId === version.id ? (
                   <Loader2 className="h-4 w-4 animate-spin ml-2 inline" />

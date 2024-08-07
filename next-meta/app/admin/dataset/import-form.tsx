@@ -1,69 +1,38 @@
-import React, { useState } from 'react';
+// app/admin/dataset/import-form.tsx
+
+import React from 'react';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import axiosInstance from '@/lib/axios-instance';
-import { useToast } from "@/components/ui/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAdminLandVersionStore } from '@/store/admin-store/useAdminLandVersionStore';
 
 interface ImportFormProps {
   onImportSuccess: () => void;
 }
 
 const ImportForm: React.FC<ImportFormProps> = ({ onImportSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState('');
-  const [versionName, setVersionName] = useState('');
-  const { toast } = useToast()
+  const { 
+    file, 
+    fileName, 
+    versionName, 
+    type,
+    adminHandleFileChange, 
+    adminHandleImport, 
+    adminSetFileName, 
+    adminSetVersionName,
+    adminSetType
+  } = useAdminLandVersionStore();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      
-      // Set file name based on the uploaded file
-      const nameWithoutExtension = selectedFile.name.split('.').slice(0, -1).join('.');
-      setFileName(nameWithoutExtension);
+      adminHandleFileChange(e.target.files[0]);
     }
   };
 
   const handleImport = async () => {
-    if (!file || !fileName || !versionName) {
-      toast({
-        title: "Error",
-        description: "Please select a file, enter a file name, and provide a version name",
-        variant: "destructive",
-      })
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('file_name', fileName);
-    formData.append('version_name', versionName);
-
-    try {
-      await axiosInstance.post('/admin/lands/import', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      toast({
-        title: "Success",
-        description: "Import successful",
-      })
-      onImportSuccess();
-      
-      // Clear the form after successful import
-      setFile(null);
-      setFileName('');
-      setVersionName('');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Import failed",
-        variant: "destructive",
-      })
-    }
+    await adminHandleImport();
+    onImportSuccess();
   };
 
   return (
@@ -81,7 +50,7 @@ const ImportForm: React.FC<ImportFormProps> = ({ onImportSuccess }) => {
               type="text" 
               placeholder="File Name" 
               value={fileName} 
-              onChange={(e) => setFileName(e.target.value)} 
+              onChange={(e) => adminSetFileName(e.target.value)} 
             />
           </div>
           <div className="flex-1">
@@ -89,8 +58,19 @@ const ImportForm: React.FC<ImportFormProps> = ({ onImportSuccess }) => {
               type="text" 
               placeholder="Version Name" 
               value={versionName} 
-              onChange={(e) => setVersionName(e.target.value)} 
+              onChange={(e) => adminSetVersionName(e.target.value)} 
             />
+          </div>
+          <div className="flex-1">
+            <Select value={type} onValueChange={adminSetType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="mine">Mine</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={handleImport}>Import</Button>
         </div>

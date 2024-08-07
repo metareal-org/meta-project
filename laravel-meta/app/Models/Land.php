@@ -10,16 +10,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Land extends Model
 {
-    protected $appends = ['type', 'owner_nickname', 'has_active_auction', 'minimum_bid', 'is_for_sale'];
+    protected $appends = ['owner_nickname', 'has_active_auction', 'minimum_bid', 'is_for_sale'];
     protected $casts = [
         'is_in_scratch' => 'boolean',
     ];
-    protected function type(): Attribute
-    {
-        return Attribute::make(
-            get: fn() => "building",
-        );
-    }
+ 
 
     protected function ownerNickname(): Attribute
     {

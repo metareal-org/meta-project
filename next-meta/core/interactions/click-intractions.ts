@@ -39,6 +39,16 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
     setSelectedLandId(clickedLandId);
     setDrawerState(drawerLand[feature.layer.id], true);
 
+    // Immediately update land color
+    if (mapbox) {
+      mapbox.setPaintProperty("citylands", "fill-color", [
+        "case",
+        ["==", ["get", "id"], clickedLandId],
+        "#83a66c", // Highlight color for selected land
+        ["case", ["has", "fill-color"], ["get", "fill-color"], "rgba(0, 0, 0, 0.1)"]
+      ]);
+    }
+
     const centerPoint = center({ type: "FeatureCollection", features: [feature] });
     const polygonArea = area({ type: "FeatureCollection", features: [feature] });
     const baseZoomLevel = 16;
@@ -55,7 +65,6 @@ const handleLandClick = (feature: MapboxGeoJSONFeature, setDrawerState: any) => 
     }
   }
 };
-
 const deselectLand = () => {
   const { setSelectedLandId, selectedLandId } = useLandStore.getState();
   if (selectedLandId !== null) {

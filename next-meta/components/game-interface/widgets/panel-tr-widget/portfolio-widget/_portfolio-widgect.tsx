@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { forwardRef, useEffect, useMemo, useState } from "react";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import numeral from "numeral";
 import { HandCoins, PiggyBank } from "lucide-react";
@@ -18,44 +18,29 @@ interface TokenDisplayProps {
   theme: "default" | "shadcn";
 }
 
-const TokenDisplay: React.FC<TokenDisplayProps> = ({ icon, amount, name, showLocked, freeAmount, lockedAmount, totalAmount, theme }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <div
-        className={`${
-          theme === "default" ? "bg-teal-fg/90 border-2 border-teal rounded-full" : "bg-background border"
-        } relative px-3 py-1 flex flex-col items-center justify-center cursor-pointer`}
-      >
-        {theme === "default" && (
-          <span
-            className="text-xs absolute -top-4 bg-teal/90 left-[16px] rounded-b-none rounded px-2 text-teal-fg text-teal-200"
-          >
-            {showLocked ? "Locked" : "Free"}
-          </span>
-        )}
-        <div className="flex items-center space-x-2">
-          {theme === "shadcn" && (
-            <span className="text-xs text-muted-foreground mr-1">
-              {showLocked ? "Locked" : "Free"}:
-            </span>
-          )}
-          <img src={icon} alt={name} className="w-6 h-6" />
-          <span className={`${theme === "default" ? "text-white" : "text-foreground"} font-medium text-sm`}>
-            {numeral(amount).format("0,0")} {name}
-          </span>
-        </div>
-      </div>
-    </TooltipTrigger>
-    <TooltipContent side="bottom" className={`${theme === "default" ? "bg-teal-fg  rounded-lg text-white" : "bg-teal-fg text-white rounded-none"} p-3 shadow-lg`}>
-      <div className="space-y-1">
-        <p className="font-semibold">{name} Details:</p>
-        <p>Free: {numeral(freeAmount).format("0,0")}</p>
-        <p>Locked: {numeral(lockedAmount).format("0,0")}</p>
-        <p>Total: {numeral(totalAmount).format("0,0")}</p>
-      </div>
-    </TooltipContent>
-  </Tooltip>
-);
+const TokenDisplay = forwardRef<HTMLDivElement, TokenDisplayProps>(({ icon, amount, name, showLocked, freeAmount, lockedAmount, totalAmount, theme }, ref) => (
+  <div
+    ref={ref}
+    className={`${
+      theme === "default" ? "bg-teal-fg/90 border-2 border-teal rounded-full" : "bg-background border"
+    } relative px-3 py-1 flex flex-col items-center justify-center cursor-pointer`}
+  >
+    {theme === "default" && (
+      <span className="text-xs absolute -top-4 bg-teal/90 left-[16px] rounded-b-none rounded px-2 text-teal-fg text-teal-200">
+        {showLocked ? "Locked" : "Free"}
+      </span>
+    )}
+    <div className="flex items-center space-x-2">
+      {theme === "shadcn" && <span className="text-xs text-muted-foreground mr-1">{showLocked ? "Locked" : "Free"}:</span>}
+      <img src={icon} alt={name} className="w-6 h-6" />
+      <span className={`${theme === "default" ? "text-white" : "text-foreground"} font-medium text-sm`}>
+        {numeral(amount).format("0,0")} {name}
+      </span>
+    </div>
+  </div>
+));
+
+TokenDisplay.displayName = "TokenDisplay";
 
 interface ToggleIndicatorProps {
   showLocked: boolean;
@@ -68,16 +53,8 @@ const ToggleIndicator: React.FC<ToggleIndicatorProps> = ({ showLocked, setShowLo
     size="icon"
     variant={theme === "default" ? "ghost" : "outline"}
     onClick={() => setShowLocked(!showLocked)}
-    className={`${
-      theme === "default"
-        ? "!p-1.5 border-2 border-teal bg-teal-fg/90 !rounded-full text-xs font-medium transition-colors"
-        : "rounded-none"
-    } ${
-      theme === "default"
-        ? showLocked
-          ? "bg-red-500 text-white"
-          : "bg-green-500 text-white"
-        : ""
+    className={`${theme === "default" ? "!p-1.5 border-2 border-teal bg-teal-fg/90 !rounded-full text-xs font-medium transition-colors" : "rounded-none"} ${
+      theme === "default" ? (showLocked ? "bg-red-500 text-white" : "bg-green-500 text-white") : ""
     }`}
   >
     {showLocked ? <PiggyBank /> : <HandCoins />}
@@ -88,7 +65,7 @@ interface PortfolioWidgetProps {
   theme?: "default" | "shadcn";
 }
 
-const PortfolioWidget: React.FC<PortfolioWidgetProps> = ({ theme = "default" }) => {
+const PortfolioWidget = forwardRef<HTMLDivElement, PortfolioWidgetProps>(({ theme = "default" }, ref) => {
   const [showLocked, setShowLocked] = useState(false);
   const { user, getAssetAmount } = useUserStore();
   const { openAlert } = useAlertStore();
@@ -129,43 +106,88 @@ const PortfolioWidget: React.FC<PortfolioWidgetProps> = ({ theme = "default" }) 
     <div className={` ${theme === "shadcn" ? "rounded-lg" : "fixed top-[42px] right-4 z-50"}`}>
       <TooltipProvider delayDuration={100}>
         <div className="flex items-center gap-2">
-          <div onClick={showWithdrawAlert}>
-            <TokenDisplay
-              icon="/assets/images/tokens/meta.png"
-              amount={showLocked ? metaAmount.locked : metaAmount.free}
-              name="Meta"
-              showLocked={showLocked}
-              freeAmount={metaAmount.free}
-              lockedAmount={metaAmount.locked}
-              totalAmount={metaAmount.total}
-              theme={theme}
-            />
-          </div>
-          <TokenDisplay
-            icon="/assets/images/tokens/cp.webp"
-            amount={showLocked ? cpAmount.locked : cpAmount.free}
-            name="CP"
-            showLocked={showLocked}
-            freeAmount={cpAmount.free}
-            lockedAmount={cpAmount.locked}
-            totalAmount={cpAmount.total}
-            theme={theme}
-          />
-          <TokenDisplay
-            icon="/assets/images/tokens/bnb.webp"
-            amount={showLocked ? bnbAmount.locked : bnbAmount.free}
-            name="BNB"
-            showLocked={showLocked}
-            freeAmount={bnbAmount.free}
-            lockedAmount={bnbAmount.locked}
-            totalAmount={bnbAmount.total}
-            theme={theme}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div onClick={showWithdrawAlert}>
+                <TokenDisplay
+                  icon="/assets/images/tokens/meta.png"
+                  amount={showLocked ? metaAmount.locked : metaAmount.free}
+                  name="Meta"
+                  showLocked={showLocked}
+                  freeAmount={metaAmount.free}
+                  lockedAmount={metaAmount.locked}
+                  totalAmount={metaAmount.total}
+                  theme={theme}
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className={`${theme === "default" ? "bg-teal-fg  rounded-lg text-white" : "bg-teal-fg text-white rounded-none"} p-3 shadow-lg`}
+            >
+              <div className="space-y-1">
+                <p className="font-semibold">Meta Details:</p>
+                <p>Free: {numeral(metaAmount.free).format("0,0")}</p>
+                <p>Locked: {numeral(metaAmount.locked).format("0,0")}</p>
+                <p>Total: {numeral(metaAmount.total).format("0,0")}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TokenDisplay
+                icon="/assets/images/tokens/cp.webp"
+                amount={showLocked ? cpAmount.locked : cpAmount.free}
+                name="CP"
+                showLocked={showLocked}
+                freeAmount={cpAmount.free}
+                lockedAmount={cpAmount.locked}
+                totalAmount={cpAmount.total}
+                theme={theme}
+              />
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className={`${theme === "default" ? "bg-teal-fg  rounded-lg text-white" : "bg-teal-fg text-white rounded-none"} p-3 shadow-lg`}
+            >
+              <div className="space-y-1">
+                <p className="font-semibold">CP Details:</p>
+                <p>Free: {numeral(cpAmount.free).format("0,0")}</p>
+                <p>Locked: {numeral(cpAmount.locked).format("0,0")}</p>
+                <p>Total: {numeral(cpAmount.total).format("0,0")}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TokenDisplay
+                icon="/assets/images/tokens/bnb.webp"
+                amount={showLocked ? bnbAmount.locked : bnbAmount.free}
+                name="BNB"
+                showLocked={showLocked}
+                freeAmount={bnbAmount.free}
+                lockedAmount={bnbAmount.locked}
+                totalAmount={bnbAmount.total}
+                theme={theme}
+              />
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className={`${theme === "default" ? "bg-teal-fg  rounded-lg text-white" : "bg-teal-fg text-white rounded-none"} p-3 shadow-lg`}
+            >
+              <div className="space-y-1">
+                <p className="font-semibold">BNB Details:</p>
+                <p>Free: {numeral(bnbAmount.free).format("0,0")}</p>
+                <p>Locked: {numeral(bnbAmount.locked).format("0,0")}</p>
+                <p>Total: {numeral(bnbAmount.total).format("0,0")}</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
           <ToggleIndicator showLocked={showLocked} setShowLocked={setShowLocked} theme={theme} />
         </div>
       </TooltipProvider>
     </div>
   );
-};
+});
 
 export default PortfolioWidget;

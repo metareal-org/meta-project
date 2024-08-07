@@ -1,5 +1,6 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 import { useUserStore } from './useUserStore';
+import axiosInstance from "@/lib/axios-instance";
 
 export type AssetType =
   | 'cp'
@@ -27,6 +28,7 @@ export interface Asset {
 interface AssetStore {
   assets: Asset[];
   getAssetAmount: (type: AssetType) => number;
+  updateUserAssets: (assetType: AssetType, amount: number, action: "increase" | "decrease") => Promise<void>;
 }
 
 const useAssetStore = create<AssetStore>((set, get) => ({
@@ -51,6 +53,21 @@ const useAssetStore = create<AssetStore>((set, get) => ({
     if (!user) return 0;
     const asset = user.assets.find(a => a.type === type);
     return asset ? asset.amount : 0;
+  },
+  updateUserAssets: async (assetType: AssetType, amount: number, action: "increase" | "decrease") => {
+    try {
+      const response = await axiosInstance.post("/assets/update", {
+        asset_type: assetType,
+        amount: amount,
+        action: action,
+      });
+      const { fetchUser } = useUserStore.getState();
+      await fetchUser();
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update user assets:", error);
+      throw error;
+    }
   },
 }));
 

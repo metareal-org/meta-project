@@ -1,51 +1,80 @@
 import useMapStore from "@/store/engine-store/useMapStore";
 import useLandStore, { LandWithDetails } from "@/store/world-store/useLandStore";
-import { Map, LngLatBounds } from "mapbox-gl";
+import { Map as MapboxMap, LngLatBounds } from "mapbox-gl";
 import * as turf from "@turf/turf";
 import { Feature, Geometry } from "geojson";
 import { useUserStore } from "@/store/player-store/useUserStore";
 import { DEBUG } from "@/core/constants";
 
 type BBox = [number, number, number, number];
-
 type LandFeature = Feature<Geometry, LandWithDetails>;
+
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout | null = null;
+  return (...args: any[]) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 export const GeoJsonLoader = (sourceId: string, layerId: string) => {
   const { mapbox } = useMapStore.getState();
   const { fetchLands } = useLandStore.getState();
   let lastRequest: string | null = null;
-  let timeoutId: NodeJS.Timeout | null = null;
-  const expandBounds = (bounds: LngLatBounds, factor: number = 1.5): LngLatBounds => {
+  let lastRequestTime: number = 0;
+  const cache: Record<string, { geojson: any; timestamp: number }> = {};
+  const CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes
+  const COOLDOWN_PERIOD = 1000; // 2 seconds
+
+  const expandBounds = (bounds: LngLatBounds, factor: number = 2): LngLatBounds => {
     const bbox: BBox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
     const expanded = turf.transformScale(turf.bboxPolygon(bbox), factor);
     const [minLng, minLat, maxLng, maxLat] = turf.bbox(expanded);
     return new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
   };
 
-  const loadLandsData = async (map: Map) => {
+  const roundCoordinate = (coord: number): number => {
+    return Number(coord.toFixed(4));
+  };
+
+  const getColorForLand = (owner_id: number, is_for_sale: boolean) => {
+    const user = useUserStore.getState().user;
+    if (!user) return "#132836";
+    if (owner_id === user.id && !is_for_sale) return "navy";
+    if (owner_id === user.id && is_for_sale) return "orange";
+    if (owner_id !== user.id && !is_for_sale) return "#134255";
+    if (owner_id !== user.id && is_for_sale) return "green";
+    return "#132836";
+  };
+
+  const loadLandsData = async (map: MapboxMap) => {
+    const currentTime = Date.now();
+    if (currentTime - lastRequestTime < COOLDOWN_PERIOD) {
+      DEBUG && console.log("Skipping request due to cooldown period");
+      return;
+    }
+
     const bounds = expandBounds(map.getBounds());
-    const zoom = map.getZoom();
-    const currentRequest = `${bounds.toString()}-${zoom}`;
+    const zoom = Math.floor(map.getZoom());
+    const currentRequest = `${roundCoordinate(bounds.getWest())},${roundCoordinate(bounds.getSouth())},${roundCoordinate(bounds.getEast())},${roundCoordinate(bounds.getNorth())},${zoom}`;
 
-    const getColorForLand = (owner_id: number, is_for_sale: boolean) => {
-      const user = useUserStore.getState().user;
-      if (!user) return "#132836";
-      if (owner_id === user.id && !is_for_sale) return "navy";
-      if (owner_id === user.id && is_for_sale) return "orange";
-      if (owner_id !== user.id && !is_for_sale) return "#134255";
-      if (owner_id !== user.id && is_for_sale) return "green";
-      return "#132836";
-    };
-
-    if (currentRequest === lastRequest) {
-      DEBUG && console.log("Skipping reload for the same area");
+    if (currentRequest === lastRequest || zoom < 4) {
+      DEBUG && console.log("Skipping reload for the same area or low zoom");
       return;
     }
 
     lastRequest = currentRequest;
+    lastRequestTime = currentTime;
 
-    if (zoom < 4) {
-      return { type: "FeatureCollection", features: [] };
+    if (cache[currentRequest]) {
+      const cachedData = cache[currentRequest];
+      if (currentTime - cachedData.timestamp < CACHE_EXPIRATION) {
+        DEBUG && console.log("Using cached data");
+        updateMapData(cachedData.geojson);
+        return;
+      } else {
+        delete cache[currentRequest];
+      }
     }
 
     try {
@@ -66,13 +95,22 @@ export const GeoJsonLoader = (sourceId: string, layerId: string) => {
           .filter((feature): feature is LandFeature => feature !== null)
       );
 
-      if (mapbox && mapbox.getSource(sourceId)) {
-        (mapbox.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geojson);
-      }
+      cache[currentRequest] = { geojson, timestamp: currentTime };
+      updateMapData(geojson);
     } catch (error) {
       console.error("Error in loadLandsData:", error);
     }
   };
+
+  const updateMapData = (geojson: any) => {
+    if (mapbox && mapbox.getSource(sourceId)) {
+      requestAnimationFrame(() => {
+        (mapbox.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geojson);
+      });
+    }
+  };
+
+  const debouncedLoadLandsData = debounce(loadLandsData, 500);
 
   if (mapbox) {
     mapbox.on("load", async () => {
@@ -104,23 +142,8 @@ export const GeoJsonLoader = (sourceId: string, layerId: string) => {
           });
         }
 
-        const scheduleLoadLandsData = () => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          timeoutId = setTimeout(() => {
-            loadLandsData(mapbox);
-            timeoutId = null;
-          }, 500);
-        };
-
-        mapbox.on("movestart", () => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-        });
-
-        mapbox.on("moveend", scheduleLoadLandsData);
+        mapbox.on("moveend", () => debouncedLoadLandsData(mapbox));
+        mapbox.on("zoomend", () => debouncedLoadLandsData(mapbox));
       } catch (error) {
         console.error("Error in mapbox load event handler:", error);
       }

@@ -149,11 +149,11 @@ export default function BuildingOfferDialog() {
           </label>
           <div className="relative rounded-md shadow-sm">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <span className="text-gray-500 sm:text-sm">$</span>
+         
             </div>
             <Input
               id="offerPrice"
-              className="pl-7 pr-12 text-lg"
+              className=" pr-12 text-lg"
               placeholder="0.00"
               type="number"
               min={0}
@@ -163,7 +163,7 @@ export default function BuildingOfferDialog() {
               onChange={(e) => setOfferPrice(e.target.value)}
             />
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <span className="text-gray-500 sm:text-sm">USD</span>
+              <span className="text-gray-500 sm:text-sm">BNB</span>
             </div>
           </div>
         </div>

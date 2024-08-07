@@ -73,7 +73,7 @@ export default function BuildingBuyDialog() {
           </div>
           <div>
             <p className="text-primary">Land Price:</p>
-            <p className="text-black-50 ">${currentLandDetails.fixed_price || "N/A"}</p>
+            <p className="text-black-50 ">{currentLandDetails.fixed_price || "N/A"} BNB</p>
           </div>
         </div>
       </div>

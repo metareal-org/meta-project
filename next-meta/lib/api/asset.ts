@@ -5,7 +5,6 @@ export interface UserAsset {
   amount: number;
 }
 
-
 export interface AssetData {
   cp: number;
   cp_locked: number;
@@ -32,9 +31,8 @@ export const apiUpdateUserAssets = async (assetType: keyof AssetData, amount: nu
     amount: amount,
     action: action,
   });
-  return response.data;
 };
-
+ 
 export const apiFetchUserAssets = async (): Promise<AssetData> => {
   const response = await axiosInstance.get<AssetData>("/assets");
   return response.data;

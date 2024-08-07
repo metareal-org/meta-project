@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { DEBUG } from "../../core/constants";
-import { apiFetchOutfitGender, apiFetchUser, apiUpdateUser } from "@/lib/api/user";
+import axiosInstance from "@/lib/axios-instance";
 
 export interface UserAsset {
   id: number;
@@ -37,6 +37,7 @@ export interface UserState {
   getAssetAmount: (assetType: string) => number;
   getTotalAssetAmount: (assetTypes: string[]) => number;
   updateAssetAmount: (assetType: string, amount: number) => void;
+  applyReferralCode: (referralCode: string) => Promise<any>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -45,9 +46,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   fetchUser: async () => {
     try {
-      const response = await apiFetchUser();
-      set({ user: (response as User) || null });
-      return (response as User) || null;
+      const response = await axiosInstance.get("/user/show");
+      const userData = response.data.user;
+      set({ user: userData });
+      return userData;
     } catch (error) {
       DEBUG && console.error("Failed to fetch user:", error);
       return null;
@@ -56,9 +58,9 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   fetchOutfitGender: async (avatarUrl: string): Promise<string> => {
     try {
-      const gender = await apiFetchOutfitGender(avatarUrl);
+      const response = await axiosInstance.get<{ outfitGender: string }>(`${avatarUrl.replace(".glb", "").split("?")[0]}.json`);
+      const gender = response.data.outfitGender;
       set({ outfitGender: gender });
-      console.log(gender);
       return gender;
     } catch (error) {
       DEBUG && console.error("Failed to fetch outfit gender:", error);
@@ -69,7 +71,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUserNickname: async (nickname: string) => {
     try {
-      await apiUpdateUser({ nickname });
+      await axiosInstance.post("/user/update", { nickname });
       await get().fetchUser();
     } catch (error) {
       DEBUG && console.error("Failed to update user nickname:", error);
@@ -78,7 +80,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUserMission: async (missionId: number) => {
     try {
-      await apiUpdateUser({ current_mission: missionId });
+      await axiosInstance.post("/user/update", { current_mission: missionId });
       await get().fetchUser();
     } catch (error) {
       DEBUG && console.error("Failed to update user mission:", error);
@@ -87,7 +89,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUserAvatar: async (avatarUrl: string) => {
     try {
-      await apiUpdateUser({ avatar_url: avatarUrl });
+      await axiosInstance.post("/user/update", { avatar_url: avatarUrl });
       await get().fetchUser();
     } catch (error) {
       DEBUG && console.error("Failed to update user avatar:", error);
@@ -116,5 +118,15 @@ export const useUserStore = create<UserState>((set, get) => ({
       const updatedAssets = state.user.assets.map((asset) => (asset.type === assetType ? { ...asset, amount } : asset));
       return { user: { ...state.user, assets: updatedAssets } };
     });
+  },
+
+  applyReferralCode: async (referralCode: string) => {
+    try {
+      const response = await axiosInstance.post("/user/apply-referral", { referral_code: referralCode });
+      return response.data;
+    } catch (error) {
+      DEBUG && console.error("Failed to apply referral code:", error);
+      throw error;
+    }
   },
 }));

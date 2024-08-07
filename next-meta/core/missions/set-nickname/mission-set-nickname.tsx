@@ -13,7 +13,7 @@ import { useUserStore } from "@/store/player-store/useUserStore";
 import {} from "@/lib/api/user";
 
 export default function MissionSetNickname() {
-  const { updateUserNickname, applyReferralCode, updateCpAmount } = useUserStore.getState();
+  const { updateUserNickname, applyReferralCode } = useUserStore.getState();
   const { mapbox, setIsFlying } = useMapStore.getState();
   const { selectedMission, setSelectedMission } = useMissionStore.getState();
 
@@ -46,13 +46,7 @@ export default function MissionSetNickname() {
         {
           label: "Claim",
           onClick: () => {
-            updateCpAmount("add", 500)
-              .then(() => {
-                openCharacterDesignAlert();
-              })
-              .catch((error) => {
-                console.error("Error updating CP amount:", error);
-              });
+            openCharacterDesignAlert();
           },
         },
       ],

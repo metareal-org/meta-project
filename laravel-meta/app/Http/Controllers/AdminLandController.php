@@ -23,7 +23,7 @@ class AdminLandController extends Controller
     public function update(Request $request, $id)
     {
         $land = Land::findOrFail($id);
-        
+
         $validatedData = $request->validate([
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
@@ -141,7 +141,7 @@ class AdminLandController extends Controller
 
         try {
             Auction::whereIn('id', $validatedData['auctionIds'])
-                   ->update(['status' => 'canceled']);
+                ->update(['status' => 'canceled']);
 
             DB::commit();
             return response()->json(['message' => 'Auctions canceled successfully']);
@@ -158,12 +158,12 @@ class AdminLandController extends Controller
             'auctionIds' => 'required|array',
             'auctionIds.*' => 'integer',
         ]);
-    
+
         DB::beginTransaction();
-    
+
         try {
             Auction::whereIn('id', $validatedData['auctionIds'])->delete();
-    
+
             DB::commit();
             return response()->json(['message' => 'Auctions removed successfully']);
         } catch (\Exception $e) {
@@ -177,5 +177,4 @@ class AdminLandController extends Controller
         $auctions = Auction::with('land')->paginate(20);
         return response()->json($auctions);
     }
-
 }

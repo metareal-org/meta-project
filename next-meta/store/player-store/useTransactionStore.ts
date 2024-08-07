@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { buyLand } from "@/lib/api/transaction";
+import axiosInstance from "@/lib/axios-instance";
 import { useUserStore } from "./useUserStore";
 import useLandStore from "../world-store/useLandStore";
 
@@ -15,10 +15,10 @@ const useTransactionStore = create<TransactionStore>((set) => ({
     const landStore = useLandStore.getState();
     set({ buyingLand: true });
     try {
-      const result = await buyLand(landId);
-      userStore.fetchUser();
+      const response = await axiosInstance.post(`/lands/${landId}/buy`);
+      await userStore.fetchUser();
       await landStore.fetchLandDetails(landId);
-      console.log("Land purchased successfully:", result);
+      console.log("Land purchased successfully:", response.data);
     } catch (error) {
       console.error("Error buying land:", error);
     } finally {

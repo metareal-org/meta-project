@@ -3,7 +3,6 @@ import { LandWithDetails } from "@/store/world-store/useLandStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DollarSign, Edit, ShoppingCart, HandCoins, Gavel, User, Tag, Ticket } from "lucide-react";
 import useLandStore from "@/store/world-store/useLandStore";

@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import axiosInstance from "@/lib/axios-instance";
 import { useToast } from "@/components/ui/use-toast";
+import useAdminLandsStore from "@/store/admin-store/useAdminLandsStore";
+import useAdminScratchBoxStore from "@/store/admin-store/useAdminScratchBoxStore";
 
 interface Land {
   id: number;
@@ -29,37 +30,34 @@ interface ScratchBox {
   lands: Land[];
 }
 
-interface ScratchBoxListProps {
-  scratchBoxes: ScratchBox[];
-  onUpdate: () => void;
-}
-
-const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate }) => {
+const ScratchBoxList: React.FC = () => {
   const [selectedLands, setSelectedLands] = useState<number[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newScratchBoxName, setNewScratchBoxName] = useState("");
-  const [availableLands, setAvailableLands] = useState<Land[]>([]);
   const [randomSelectCount, setRandomSelectCount] = useState(0);
   const [sortBy, setSortBy] = useState<"id" | "name" | "price">("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [allLandIds, setAllLandIds] = useState<number[]>([]);
+  const {
+    adminFetchPageAvailableLandsForScratchBox,
+    adminPageAvailableLandsForScratchBox,
+    currentPage,
+    totalPages,
+    adminCreateScratchBox,
+    adminFetchScratchBoxes,
+    adminScratchBoxes,
+    adminDeleteScratchBox,
+    adminSelectAllPages,
+  } = useAdminScratchBoxStore();
+  const { toast } = useToast();
 
-  const fetchAllLandIds = async () => {
-    try {
-      const response = await axiosInstance.get("/admin/scratch-boxes/all-available-land-ids");
-      setAllLandIds(response.data);
-    } catch (error) {
-      console.error("Failed to fetch all land IDs:", error);
-    }
-  };
+  useEffect(() => {
+    adminFetchScratchBoxes();
+  }, []);
 
   useEffect(() => {
     if (showCreateDialog) {
-      fetchAvailableLands();
-      fetchAllLandIds();
+      adminFetchPageAvailableLandsForScratchBox();
     }
   }, [showCreateDialog]);
 
@@ -67,15 +65,13 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
     if (checked) {
       setSelectedLands((prevSelected) => {
         const newSelected = new Set(prevSelected);
-        availableLands.forEach((land) => newSelected.add(land.id));
+        adminPageAvailableLandsForScratchBox.forEach((land) => newSelected.add(land.id));
         return Array.from(newSelected);
       });
     } else {
-      setSelectedLands((prevSelected) => prevSelected.filter((id) => !availableLands.some((land) => land.id === id)));
+      setSelectedLands((prevSelected) => prevSelected.filter((id) => !adminPageAvailableLandsForScratchBox.some((land) => land.id === id)));
     }
   };
-
-  const { toast } = useToast();
 
   const handleSelectLand = (id: number) => {
     setSelectedLands((prev) => (prev.includes(id) ? prev.filter((landId) => landId !== id) : [...prev, id]));
@@ -83,22 +79,16 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
 
   const handleCreateScratchBox = async () => {
     try {
-      await axiosInstance.post("/admin/scratch-boxes", {
-        name: newScratchBoxName,
-        land_ids: selectedLands,
-      });
-      toast({
-        title: "Success",
-        description: "Scratch box created successfully",
-      });
+      await adminCreateScratchBox(newScratchBoxName, selectedLands);
       setShowCreateDialog(false);
       setSelectedLands([]);
       setNewScratchBoxName("");
-      onUpdate();
+      adminFetchScratchBoxes(); // Refresh the list after creating
     } catch (error) {
+      console.error("Error creating scratch box:", error);
       toast({
         title: "Error",
-        description: "Failed to create scratch box",
+        description: "Failed to create scratch box. Please try again.",
         variant: "destructive",
       });
     }
@@ -106,47 +96,33 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
 
   const handleDeleteScratchBox = async (id: number) => {
     try {
-      await axiosInstance.delete(`/admin/scratch-boxes/${id}`);
-      toast({
-        title: "Success",
-        description: "Scratch box deleted successfully",
-      });
-      onUpdate();
+      await adminDeleteScratchBox(id);
+      adminFetchScratchBoxes(); // Refresh the list after deleting
     } catch (error) {
+      console.error("Error deleting scratch box:", error);
       toast({
         title: "Error",
-        description: "Failed to delete scratch box",
+        description: "Failed to delete scratch box. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const fetchAvailableLands = async (page = 1) => {
-    try {
-      const response = await axiosInstance.get(`/admin/scratch-boxes/available-lands?page=${page}`);
-      setAvailableLands(response.data.data);
-      setCurrentPage(response.data.current_page);
-      setTotalPages(response.data.last_page);
-    } catch (error) {
-      console.error("Failed to fetch available lands:", error);
-      setAvailableLands([]);
-    }
-  };
-
   const handleRandomSelect = () => {
-    const shuffled = availableLands.sort(() => 0.5 - Math.random());
+    const shuffled = adminPageAvailableLandsForScratchBox.sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, randomSelectCount).map((land) => land.id);
     setSelectedLands(selected);
   };
+
   const handleSelectAllPages = async () => {
     try {
-      const response = await axiosInstance.get("/admin/scratch-boxes/all-available-land-ids");
-      setSelectedLands(response.data);
+      const allLandIds = await adminSelectAllPages();
+      setSelectedLands(allLandIds);
     } catch (error) {
-      console.error("Failed to fetch all land IDs:", error);
+      console.error("Error selecting all lands:", error);
       toast({
         title: "Error",
-        description: "Failed to select all lands",
+        description: "Failed to select all lands. Please try again.",
         variant: "destructive",
       });
     }
@@ -154,36 +130,40 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
 
   const calculateTotalPrice = () => {
     return selectedLands.reduce((total, landId) => {
-      const land = availableLands.find((l) => l.id === landId);
+      const land = adminPageAvailableLandsForScratchBox.find((l) => l.id === landId);
       return total + (land?.fixed_price || 0);
     }, 0);
   };
-  
+
   const calculateTotalSize = () => {
     return selectedLands.reduce((total, landId) => {
-      const land = availableLands.find((l) => l.id === landId);
+      const land = adminPageAvailableLandsForScratchBox.find((l) => l.id === landId);
       return total + (land?.size || 0);
     }, 0);
   };
 
-  const sortedScratchBoxes = [...scratchBoxes].sort((a, b) => {
-    if (sortOrder === "asc") {
-      return a[sortBy] > b[sortBy] ? 1 : -1;
-    } else {
-      return a[sortBy] < b[sortBy] ? 1 : -1;
-    }
-  });
-
+  const sortedScratchBoxes = adminScratchBoxes
+    ? [...adminScratchBoxes].sort((a, b) => {
+        if (sortOrder === "asc") {
+          return a[sortBy] > b[sortBy] ? 1 : -1;
+        } else {
+          return a[sortBy] < b[sortBy] ? 1 : -1;
+        }
+      })
+    : [];
   const filteredScratchBoxes = sortedScratchBoxes.filter(
     (box) => box.name.toLowerCase().includes(searchTerm.toLowerCase()) || box.id.toString().includes(searchTerm)
   );
 
   useEffect(() => {
     if (showCreateDialog) {
-      fetchAvailableLands(currentPage);
-      fetchAllLandIds();
+      console.log("Fetching available lands...");
+      adminFetchPageAvailableLandsForScratchBox();
     }
-  }, [showCreateDialog, currentPage]);
+  }, [showCreateDialog]);
+
+
+  
   return (
     <>
       <div className="mb-4 space-x-2 flex items-center">
@@ -271,11 +251,10 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
                   <TableRow>
                     <TableHead>
                       <Checkbox
-                        checked={availableLands.every((land) => selectedLands.includes(land.id))}
+                        checked={adminPageAvailableLandsForScratchBox.every((land) => selectedLands.includes(land.id))}
                         onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                       />
                     </TableHead>
-                    <TableHead>Select</TableHead>
                     <TableHead>ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Fixed Price</TableHead>
@@ -284,7 +263,7 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {availableLands.map((land) => (
+                  {adminPageAvailableLandsForScratchBox.map((land) => (
                     <TableRow key={land.id}>
                       <TableCell>
                         <Checkbox checked={selectedLands.includes(land.id)} onCheckedChange={() => handleSelectLand(land.id)} />
@@ -303,11 +282,13 @@ const ScratchBoxList: React.FC<ScratchBoxListProps> = ({ scratchBoxes, onUpdate 
                   Page {currentPage} of {totalPages}
                 </div>
                 <div>
-                  <Button variant={"secondary"} className="mr-2" onClick={handleSelectAllPages}>Select All Lands</Button>
-                  <Button onClick={() => fetchAvailableLands(currentPage - 1)} disabled={currentPage === 1}>
+                  <Button variant={"secondary"} className="mr-2" onClick={handleSelectAllPages}>
+                    Select All Lands
+                  </Button>
+                  <Button onClick={() => adminFetchPageAvailableLandsForScratchBox(currentPage - 1)} disabled={currentPage === 1}>
                     Previous
                   </Button>
-                  <Button onClick={() => fetchAvailableLands(currentPage + 1)} disabled={currentPage === totalPages} className="ml-2">
+                  <Button onClick={() => adminFetchPageAvailableLandsForScratchBox(currentPage + 1)} disabled={currentPage === totalPages} className="ml-2">
                     Next
                   </Button>
                 </div>

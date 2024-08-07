@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Land;
 use App\Models\LandVersion;
 use geoPHP;
+use PDO;
 
 class LandImportController extends Controller
 {
@@ -17,6 +18,7 @@ class LandImportController extends Controller
         $geom = geoPHP::load(json_encode($feature->geometry), 'json');
         $areaInSquareMeters = $geom->getArea() * 111319 * 111319;
         $centroid = $geom->getCentroid();
+
         Land::create([
             'full_id' => $feature->properties->full_id ?? null,
             'region' => $feature->properties->region ?? null,
@@ -33,8 +35,12 @@ class LandImportController extends Controller
             'fixed_price' => null,
             'is_locked' => false,
             'building_id' => 0,
+            'type' => $feature->properties->type ?? 'normal',
         ]);
     }
+
+
+
     private function validateGeoJSON($data)
     {
         if (!isset($data->type) || $data->type !== 'FeatureCollection') {
@@ -90,11 +96,9 @@ class LandImportController extends Controller
 
     private function updateLandsTable()
     {
-        DB::beginTransaction();
-
         try {
-            Land::truncate();
-
+            DB::statement('LOCK TABLES lands WRITE, land_versions READ');
+            DB::table('lands')->truncate();
             $activeVersions = LandVersion::where('is_active', true)->get();
             foreach ($activeVersions as $version) {
                 $data = json_decode($version->data);
@@ -102,15 +106,12 @@ class LandImportController extends Controller
                     $this->processFeatue($feature);
                 }
             }
-
-            DB::commit();
         } catch (\Exception $e) {
-            DB::rollBack();
             throw $e;
+        } finally {
+            DB::statement('UNLOCK TABLES');
         }
     }
-
-
 
     public function import(Request $request)
     {
@@ -118,6 +119,7 @@ class LandImportController extends Controller
             'file' => 'required|file',
             'file_name' => 'required|string|max:255',
             'version_name' => 'required|string|max:255',
+            'type' => 'required|in:normal,mine',
         ]);
 
         $file = $request->file('file');
@@ -133,13 +135,21 @@ class LandImportController extends Controller
             return response()->json(['error' => 'Invalid GeoJSON format: ' . $validationResult], 400);
         }
 
+        // Add type to each feature
+        foreach ($data->features as $feature) {
+            $feature->properties->type = $request->type;
+        }
+
+        $updatedJsonContents = json_encode($data);
+
         try {
             LandVersion::create([
-                'data' => $jsonContents,
+                'data' => $updatedJsonContents,
                 'file_name' => $request->file_name,
                 'version_name' => $request->version_name,
                 'is_active' => false,
                 'is_locked' => false,
+                'type' => $request->type,
             ]);
 
             return response()->json(['message' => 'Import successful'], 200);
@@ -147,11 +157,9 @@ class LandImportController extends Controller
             return response()->json(['error' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }
-
     public function getVersions()
     {
-        $versions = LandVersion::select('id', 'file_name', 'version_name', 'is_active', 'is_locked', 'created_at')
-            ->orderBy('created_at', 'desc')
+        $versions = LandVersion::orderBy('created_at', 'desc')
             ->get();
 
         if ($versions->isEmpty()) {
@@ -214,10 +222,13 @@ class LandImportController extends Controller
                 throw new \Exception("No valid full_id found in the version data");
             }
 
-            $affectedRows = Land::whereIn('full_id', $fullIds)->update(['is_locked' => true]);
+            // Modify this query to only update lands with owner_id 1
+            $affectedRows = Land::whereIn('full_id', $fullIds)
+                ->where('owner_id', 1)
+                ->update(['is_locked' => true]);
 
             if ($affectedRows == 0) {
-                throw new \Exception("No lands were updated. Make sure the lands exist in the database.");
+                throw new \Exception("No lands were updated. Make sure the lands exist in the database and belong to owner_id 1.");
             }
 
             $version->is_locked = true;
@@ -271,20 +282,64 @@ class LandImportController extends Controller
     }
     public function toggleActive($id)
     {
+        try {
+            DB::beginTransaction();
+            $version = LandVersion::lockForUpdate()->findOrFail($id);
+            $oldState = $version->is_active;
+            $version->is_active = !$oldState;
+            $version->save();
+            DB::commit();
+            if ($version->is_active) {
+                $this->updateLandsTable();
+            }
+            return response()->json([
+                'message' => 'Version active status toggled successfully',
+                'is_active' => $version->is_active
+            ], 200);
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
+            return response()->json(['error' => 'Toggle failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function updateLandType(Request $request, $id)
+    {
+        $request->validate([
+            'type' => 'required|in:normal,mine',
+        ]);
+
         DB::beginTransaction();
 
         try {
             $version = LandVersion::findOrFail($id);
-            $version->is_active = !$version->is_active;
+            $data = json_decode($version->data);
+
+            // Update type in GeoJSON data
+            foreach ($data->features as $feature) {
+                $feature->properties->type = $request->type;
+            }
+
+            $version->data = json_encode($data);
+            $version->type = $request->type;
             $version->save();
 
-            $this->updateLandsTable();
+            // Update all lands associated with this version
+            $fullIds = collect($data->features)
+                ->pluck('properties.full_id')
+                ->filter()
+                ->values()
+                ->toArray();
+
+            Land::whereIn('full_id', $fullIds)->update(['type' => $request->type]);
 
             DB::commit();
-            return response()->json(['message' => 'Version active status toggled successfully', 'is_active' => $version->is_active], 200);
+            return response()->json(['message' => 'Land type updated successfully'], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Toggle failed: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Update failed: ' . $e->getMessage()], 500);
         }
     }
 }

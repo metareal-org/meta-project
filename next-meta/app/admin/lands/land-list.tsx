@@ -1,36 +1,30 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import axiosInstance from "@/lib/axios-instance";
-import { useToast } from "@/components/ui/use-toast";
+import useAdminLandsStore from "@/store/admin-store/useAdminLandsStore";
+import { LandWithDetails } from "@/store/world-store/useLandStore";
 
-interface Land {
-  id: number;
-  name: string;
-  latitude: number;
-  longitude: number;
-  owner_id: number;
-  owner_nickname: string;
-  fixed_price: number | null;
-  is_for_sale: boolean;
-  size: number;
-}
+const LandList: React.FC = () => {
+  const {
+    pageLands,
+    allLandIds,
+    currentPage,
+    totalPages,
+    selectedLands,
+    adminFetchPageLands,
+    adminHandleSelectAll,
+    adminHandleSelectLand,
+    adminHandleBulkCreateAuctions,
+    adminHandleBulkUpdateFixedPrice,
+    adminHandleBulkUpdatePriceBySize,
+    adminCalculateTotalPrice,
+    adminCalculateTotalSize,
+  } = useAdminLandsStore();
 
-interface LandListProps {
-  lands: Land[];
-  allLandIds: number[];
-  onUpdate: () => void;
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
-
-const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, currentPage, totalPages, onPageChange }) => {
-  const [selectedLands, setSelectedLands] = useState<number[]>([]);
   const [fixedPrice, setFixedPrice] = useState<number>(0);
   const [pricePerSize, setPricePerSize] = useState<number>(0);
   const [showBulkEditDialog, setShowBulkEditDialog] = useState(false);
@@ -38,99 +32,28 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
   const [auctionMinPrice, setAuctionMinPrice] = useState<number>(0);
   const [auctionStartTime, setAuctionStartTime] = useState<string>("");
   const [auctionEndTime, setAuctionEndTime] = useState<string>("");
-  const [sortBy, setSortBy] = useState<keyof Land>("id");
+  const [sortBy, setSortBy] = useState<keyof LandWithDetails>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterForSale, setFilterForSale] = useState<boolean | null>(null);
+  const [selectedLandDetails, setSelectedLandDetails] = useState<LandWithDetails | null>(null);
+  const [filterAuctionStatus, setFilterAuctionStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterMinPrice, setFilterMinPrice] = useState<number | "">("");
+  const [filterMaxPrice, setFilterMaxPrice] = useState<number | "">("");
+  const [filterMinSize, setFilterMinSize] = useState<number | "">("");
+  const [filterMaxSize, setFilterMaxSize] = useState<number | "">("");
+  const filteredLands = pageLands.filter((land) => {
+    const matchesSearch = land.id.toString().includes(searchTerm) || land.owner_nickname?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesForSale = filterForSale === null || land.is_for_sale === filterForSale;
+    const matchesAuctionStatus =
+      filterAuctionStatus === "all" ||
+      (filterAuctionStatus === "active" && land.has_active_auction) ||
+      (filterAuctionStatus === "inactive" && !land.has_active_auction);
+    const matchesPrice = (filterMinPrice === "" || land.fixed_price >= filterMinPrice) && (filterMaxPrice === "" || land.fixed_price <= filterMaxPrice);
+    const matchesSize = (filterMinSize === "" || land.size >= filterMinSize) && (filterMaxSize === "" || land.size <= filterMaxSize);
 
-  
-  const { toast } = useToast();
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedLands(allLandIds);
-    } else {
-      setSelectedLands([]);
-    }
-  };
-
-  const handleSelectLand = (id: number) => {
-    setSelectedLands((prev) => (prev.includes(id) ? prev.filter((landId) => landId !== id) : [...prev, id]));
-  };
-
-  const handleBulkCreateAuctions = async () => {
-    try {
-      await axiosInstance.post("/admin/manage/lands/bulk-create-auctions", {
-        landIds: selectedLands,
-        minimumPrice: auctionMinPrice,
-        startTime: auctionStartTime,
-        endTime: auctionEndTime,
-      });
-      toast({
-        title: "Success",
-        description: "Auctions created successfully",
-      });
-      setShowAuctionDialog(false);
-      setSelectedLands([]);
-      onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create auctions",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleBulkUpdateFixedPrice = async () => {
-    try {
-      await axiosInstance.post("/admin/manage/lands/bulk-update-fixed-price", {
-        landIds: selectedLands,
-        fixedPrice: fixedPrice,
-      });
-      toast({
-        title: "Success",
-        description: "Lands updated successfully with fixed price",
-      });
-      setShowBulkEditDialog(false);
-      setSelectedLands([]);
-      onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update lands",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleBulkUpdatePriceBySize = async () => {
-    try {
-      await axiosInstance.post("/admin/manage/lands/bulk-update-price-by-size", {
-        landIds: selectedLands,
-        pricePerSize: pricePerSize,
-      });
-      toast({
-        title: "Success",
-        description: "Lands updated successfully with price by size",
-      });
-      setShowBulkEditDialog(false);
-      setSelectedLands([]);
-      onUpdate();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update lands",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const filteredLands = lands.filter(
-    (land) =>
-      (land.id.toString().includes(searchTerm) || land.owner_nickname.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (filterForSale === null || land.is_for_sale === filterForSale)
-  );
+    return matchesSearch && matchesForSale && matchesAuctionStatus && matchesPrice && matchesSize;
+  });
 
   const sortedLands = [...filteredLands].sort((a: any, b: any) => {
     if (a[sortBy] < b[sortBy]) return sortOrder === "asc" ? -1 : 1;
@@ -138,18 +61,9 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
     return 0;
   });
 
-  const calculateTotalPrice = () => {
-    return selectedLands.reduce((total, landId) => {
-      const land = lands.find((l) => l.id === landId);
-      return total + (land?.fixed_price || 0);
-    }, 0);
-  };
-
-  const calculateTotalSize = () => {
-    return selectedLands.reduce((total, landId) => {
-      const land = lands.find((l) => l.id === landId);
-      return total + (land?.size || 0);
-    }, 0);
+  const handleShowDetails = (landId: number) => {
+    const land = pageLands.find((l) => l.id === landId);
+    setSelectedLandDetails(land || null);
   };
 
   return (
@@ -178,13 +92,13 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
 
         <Input placeholder="Search lands..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm" />
 
-        <Select value={sortBy} onValueChange={(value: keyof Land) => setSortBy(value)}>
+        <Select value={sortBy} onValueChange={(value: keyof LandWithDetails) => setSortBy(value)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="id">ID</SelectItem>
-            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="owner_nickname">Owner</SelectItem>
             <SelectItem value="fixed_price">Price</SelectItem>
             <SelectItem value="size">Size</SelectItem>
           </SelectContent>
@@ -196,47 +110,45 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
           <strong>Selected Lands:</strong> {selectedLands.length}
         </div>
         <div>
-          <strong>Total Price:</strong> {calculateTotalPrice()}
+          <strong>Total Price:</strong> {adminCalculateTotalPrice()}
         </div>
         <div>
-          <strong>Total Size:</strong> {calculateTotalSize()}
+          <strong>Total Size:</strong> {adminCalculateTotalSize()}
         </div>
         <div>
-          <strong>Avg Price per Size:</strong> {selectedLands.length ? (calculateTotalPrice() / calculateTotalSize()).toFixed(2) : 0}
+          <strong>Avg Price per Size:</strong> {selectedLands.length ? (adminCalculateTotalPrice() / adminCalculateTotalSize()).toFixed(2) : 0}
         </div>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>
-              <Checkbox checked={selectedLands.length === allLandIds.length} onCheckedChange={(checked) => handleSelectAll(checked as boolean)} />
+              <Checkbox checked={selectedLands.length === allLandIds.length} onCheckedChange={(checked) => adminHandleSelectAll(checked as boolean)} />
             </TableHead>
-            <TableHead>Select</TableHead>
             <TableHead>ID</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Latitude</TableHead>
-            <TableHead>Longitude</TableHead>
             <TableHead>Owner</TableHead>
             <TableHead>Fixed Price</TableHead>
-            <TableHead>For Sale</TableHead>
             <TableHead>Size</TableHead>
+            <TableHead>For Sale</TableHead>
+            <TableHead>Auction</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedLands.map((land) => (
             <TableRow key={land.id}>
               <TableCell>
-                <Checkbox checked={selectedLands.includes(land.id)} onCheckedChange={() => handleSelectLand(land.id)} />
+                <Checkbox checked={selectedLands.includes(land.id)} onCheckedChange={() => adminHandleSelectLand(land.id)} />
               </TableCell>
-
               <TableCell>{land.id}</TableCell>
-              <TableCell>{land.name}</TableCell>
-              <TableCell>{land.latitude}</TableCell>
-              <TableCell>{land.longitude}</TableCell>
               <TableCell>{land.owner_nickname}</TableCell>
               <TableCell>{land.fixed_price}</TableCell>
-              <TableCell>{land.is_for_sale ? "Yes" : "No"}</TableCell>
               <TableCell>{land.size}</TableCell>
+              <TableCell>{land.is_for_sale ? "Yes" : "No"}</TableCell>
+              <TableCell>{land.has_active_auction ? "Yes" : "No"}</TableCell>
+              <TableCell>
+                <Button onClick={() => handleShowDetails(land.id)}>More</Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -246,10 +158,10 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
           Page {currentPage} of {totalPages}
         </div>
         <div>
-          <Button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+          <Button onClick={() => adminFetchPageLands(currentPage - 1)} disabled={currentPage === 1}>
             Previous
           </Button>
-          <Button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="ml-2">
+          <Button onClick={() => adminFetchPageLands(currentPage + 1)} disabled={currentPage === totalPages} className="ml-2">
             Next
           </Button>
         </div>
@@ -264,12 +176,12 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
               <label htmlFor="fixed_price">Fixed Price</label>
               <Input id="fixed_price" type="number" value={fixedPrice} onChange={(e) => setFixedPrice(Number(e.target.value))} className="col-span-3" />
             </div>
-            <Button onClick={handleBulkUpdateFixedPrice}>Set Fixed Price</Button>
+            <Button onClick={() => adminHandleBulkUpdateFixedPrice(fixedPrice)}>Set Fixed Price</Button>
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="price_per_size">Price per Size</label>
               <Input id="price_per_size" type="number" value={pricePerSize} onChange={(e) => setPricePerSize(Number(e.target.value))} className="col-span-3" />
             </div>
-            <Button onClick={handleBulkUpdatePriceBySize}>Set Price by Size</Button>
+            <Button onClick={() => adminHandleBulkUpdatePriceBySize(pricePerSize)}>Set Price by Size</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -297,8 +209,62 @@ const LandList: React.FC<LandListProps> = ({ lands, allLandIds, onUpdate, curren
               <label htmlFor="end_time">End Time</label>
               <Input id="end_time" type="datetime-local" value={auctionEndTime} onChange={(e) => setAuctionEndTime(e.target.value)} className="col-span-3" />
             </div>
-            <Button onClick={handleBulkCreateAuctions}>Create Auctions</Button>
+            <Button
+              onClick={() => {
+                adminHandleBulkCreateAuctions({ minimumPrice: auctionMinPrice, startTime: auctionStartTime, endTime: auctionEndTime }).then(() => {
+                  setShowAuctionDialog(false);
+                });
+              }}
+            >
+              Create Auctions
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!selectedLandDetails} onOpenChange={() => setSelectedLandDetails(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Land Details</DialogTitle>
+          </DialogHeader>
+          {selectedLandDetails && (
+            <div className="grid gap-4 py-4">
+              <div>
+                <strong>ID:</strong> {selectedLandDetails.id}
+              </div>
+              <div>
+                <strong>Owner:</strong> {selectedLandDetails.owner_nickname}
+              </div>
+              <div>
+                <strong>Fixed Price:</strong> {selectedLandDetails.fixed_price}
+              </div>
+              <div>
+                <strong>Size:</strong> {selectedLandDetails.size}
+              </div>
+              <div>
+                <strong>For Sale:</strong> {selectedLandDetails.is_for_sale ? "Yes" : "No"}
+              </div>
+              <div>
+                <strong>Has Active Auction:</strong> {selectedLandDetails.has_active_auction ? "Yes" : "No"}
+              </div>
+              <div>
+                <strong>Region:</strong> {selectedLandDetails.region}
+              </div>
+              <div>
+                <strong>Zone:</strong> {selectedLandDetails.zone}
+              </div>
+              <div>
+                <strong>Type:</strong> {selectedLandDetails.type}
+              </div>
+              {selectedLandDetails.active_auction && (
+                <div>
+                  <strong>Auction Details:</strong>
+                  <div>Minimum Bid: {selectedLandDetails.active_auction.minimum_bid}</div>
+                  <div>Start Time: {selectedLandDetails.active_auction.start_time}</div>
+                  <div>End Time: {selectedLandDetails.active_auction.end_time}</div>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

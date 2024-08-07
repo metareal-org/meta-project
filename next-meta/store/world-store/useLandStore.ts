@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import axiosInstance from "@/lib/axios-instance";
-import { fetchLandsFromServer, apiFetchLandDetails, fetchSelectedLandActiveAuction } from "@/lib/api/land";
 import useMapStore from "@/store/engine-store/useMapStore";
 import { DEBUG } from "@/core/constants";
+
 export interface Land {
   id: number;
   name: string;
@@ -12,12 +12,27 @@ export interface Land {
   auction?: boolean;
   region?: string;
   fixed_price: number;
-  type: "building" | "mine";
+  type: "normal" | "mine";
   coordinates: string;
   latitude: number;
   longitude: number;
   has_active_auction: boolean;
 }
+
+
+interface LandStoreState {
+  selectedLandId: number | null;
+  setSelectedLandId: (landId: number | null) => void;
+  lands: Land[];
+  fetchLands: (bounds: mapboxgl.LngLatBounds, zoom: number) => Promise<Land[]>;
+  currentLandDetails: LandWithDetails | null;
+  fetchLandDetails: (id: number) => Promise<void>;
+  currentFetchController: AbortController | null;
+  currentLandAuctions: Auction[] | null;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+}
+
 
 export interface LandWithDetails extends Land {
   properties: Land;
@@ -33,6 +48,7 @@ export interface LandWithDetails extends Land {
     land_id: number;
     owner_id: number;
     minimum_price: number;
+    minimum_bid: number;
     highest_bid: number;
     start_time: string;
     end_time: string;
@@ -53,13 +69,11 @@ interface Auction {
   land_id: number;
   is_active: boolean;
   end_time: string;
-  // Add other auction properties as needed
 }
 
 interface LandStoreState {
   selectedLandId: number | null;
   setSelectedLandId: (landId: number | null) => void;
-
   lands: Land[];
   fetchLands: (bounds: mapboxgl.LngLatBounds, zoom: number) => Promise<Land[]>;
   currentLandDetails: LandWithDetails | null;
@@ -74,19 +88,33 @@ const useLandStore = create<LandStoreState>((set, get) => ({
   currentLandDetails: null,
   currentFetchController: null,
   currentLandAuctions: null,
+  isLoading: false,
+
+  setIsLoading: (loading: boolean) => set({ isLoading: loading }),
 
   setSelectedLandId: (landId: number | null) => {
-    set({ selectedLandId: landId });
+    set({ selectedLandId: landId, isLoading: true });
     if (landId !== null) {
       get().fetchLandDetails(landId);
     } else {
-      set({ currentLandDetails: null, currentLandAuctions: null });
+      set({ currentLandDetails: null, currentLandAuctions: null, isLoading: false });
     }
   },
 
   fetchLands: async (bounds, zoom) => {
     try {
-      const lands = await fetchLandsFromServer(bounds, zoom);
+      const response = await axiosInstance.get("/lands", {
+        params: {
+          bounds: {
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          },
+          zoom,
+        },
+      });
+      const lands = response.data;
       set({ lands });
       return lands;
     } catch (error) {
@@ -101,11 +129,12 @@ const useLandStore = create<LandStoreState>((set, get) => ({
       currentController.abort();
     }
     const controller = new AbortController();
-    set({ currentFetchController: controller });
+    set({ currentFetchController: controller, isLoading: true });
 
     try {
-      const landDetails = await apiFetchLandDetails(id, controller.signal);
-      set({ currentLandDetails: landDetails });
+      const response = await axiosInstance.get(`/lands/${id}`, { signal: controller.signal });
+      const landDetails = response.data;
+      set({ currentLandDetails: landDetails, isLoading: false });
       const { mapbox } = useMapStore.getState();
       if (mapbox) {
         mapbox.setPaintProperty("citylands", "fill-color", [
@@ -124,7 +153,7 @@ const useLandStore = create<LandStoreState>((set, get) => ({
       }
     } finally {
       if (get().currentFetchController === controller) {
-        set({ currentFetchController: null });
+        set({ currentFetchController: null, isLoading: false });
       }
     }
   },
